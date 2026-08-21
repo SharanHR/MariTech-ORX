@@ -1,0 +1,6 @@
+@MariTech.ORX.Api_HostAddress = http://localhost:5185
+
+GET {{MariTech.ORX.Api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

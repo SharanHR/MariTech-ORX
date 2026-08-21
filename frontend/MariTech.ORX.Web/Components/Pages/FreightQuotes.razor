@@ -1,0 +1,386 @@
+@page "/freight-quotes"
+@using System.Net.Http.Json
+@inject IHttpClientFactory HttpClientFactory
+
+<PageTitle>Freight Quotes | MariTech ORX</PageTitle>
+
+<div class="freight-page">
+
+    <div class="page-header">
+        <div>
+            <h1>Freight Quotes</h1>
+            <p>Compare live freight costs across carriers and routes.</p>
+        </div>
+
+        <div class="live-status">
+            <span></span>
+            Live Database
+        </div>
+    </div>
+
+    <div class="filters-card">
+
+        <input @bind="search"
+               @bind:event="oninput"
+               placeholder="Search quote, carrier, origin..." />
+
+        <input @bind="carrier"
+               @bind:event="oninput"
+               placeholder="Carrier" />
+
+        <input @bind="origin"
+               @bind:event="oninput"
+               placeholder="Origin" />
+
+        <input @bind="destination"
+               @bind:event="oninput"
+               placeholder="Destination" />
+
+        <button class="apply-button"
+                @onclick="ApplyFilters">
+            Apply
+        </button>
+
+        <button class="reset-button"
+                @onclick="ResetFilters">
+            Reset
+        </button>
+
+    </div>
+
+    @if (loading)
+    {
+        <div class="state-card">
+            Loading freight quotes...
+        </div>
+    }
+    else if (error)
+    {
+        <div class="error-card">
+            <h3>Unable to load freight quotes</h3>
+            <p>Check that the ORX API is running.</p>
+
+            <button @onclick="LoadQuotes">
+                Retry
+            </button>
+        </div>
+    }
+    else
+    {
+        <div class="summary-row">
+
+            <div class="summary-card">
+                <span>Total Quotes</span>
+                <strong>@totalRecords</strong>
+            </div>
+
+            <div class="summary-card">
+                <span>Current Page</span>
+                <strong>@currentPage</strong>
+            </div>
+
+            <div class="summary-card">
+                <span>Total Pages</span>
+                <strong>@totalPages</strong>
+            </div>
+
+        </div>
+
+        <div class="table-card">
+
+            <div class="table-header">
+
+                <div>
+                    <h2>Freight Quote Network</h2>
+                    <p>Real records from SQL Server</p>
+                </div>
+
+                <button class="refresh-button"
+                        @onclick="LoadQuotes">
+                    ↻ Refresh
+                </button>
+
+            </div>
+
+            @if (quotes.Count == 0)
+            {
+                <div class="empty-state">
+                    No freight quotes found.
+                </div>
+            }
+            else
+            {
+                <div class="table-wrapper">
+
+                    <table>
+
+                        <thead>
+                            <tr>
+                                <th>Quote ID</th>
+                                <th>Carrier</th>
+                                <th>Origin</th>
+                                <th>Destination</th>
+                                <th>Container</th>
+                                <th>Quantity</th>
+                                <th>Base Freight</th>
+                                <th>Surcharges</th>
+                                <th>Total Cost</th>
+                                <th>Currency</th>
+                                <th>Valid Until</th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+
+                            @foreach (var quote in quotes)
+                            {
+                                <tr>
+
+                                    <td class="quote-id">
+                                        @quote.QuoteId
+                                    </td>
+
+                                    <td>
+                                        @(quote.Carrier ?? "—")
+                                    </td>
+
+                                    <td>
+                                        @(quote.Origin ?? "—")
+                                    </td>
+
+                                    <td>
+                                        @(quote.Destination ?? "—")
+                                    </td>
+
+                                    <td>
+                                        @(quote.ContainerType ?? "—")
+                                    </td>
+
+                                    <td>
+                                        @(quote.EquipmentQuantity?.ToString() ?? "—")
+                                    </td>
+
+                                    <td>
+                                        @FormatMoney(
+                                            quote.BaseFreight,
+                                            quote.Currency)
+                                    </td>
+
+                                    <td>
+                                        @FormatMoney(
+                                            GetSurcharges(quote),
+                                            quote.Currency)
+                                    </td>
+
+                                    <td class="total-cost">
+                                        @FormatMoney(
+                                            quote.TotalCost,
+                                            quote.Currency)
+                                    </td>
+
+                                    <td>
+                                        @(quote.Currency ?? "—")
+                                    </td>
+
+                                    <td>
+                                        @(quote.ValidUntil?.ToString("dd MMM yyyy") ?? "—")
+                                    </td>
+
+                                </tr>
+                            }
+
+                        </tbody>
+
+                    </table>
+
+                </div>
+
+                <div class="pagination">
+
+                    <button disabled="@(currentPage <= 1)"
+                            @onclick="PreviousPage">
+                        ← Previous
+                    </button>
+
+                    <span>
+                        Page <strong>@currentPage</strong>
+                        of <strong>@totalPages</strong>
+                    </span>
+
+                    <button disabled="@(currentPage >= totalPages)"
+                            @onclick="NextPage">
+                        Next →
+                    </button>
+
+                </div>
+            }
+
+        </div>
+    }
+
+</div>
+
+@code {
+
+    private List<FreightQuoteDto> quotes = new();
+
+    private int currentPage = 1;
+    private int pageSize = 20;
+
+    private int totalRecords;
+    private int totalPages;
+
+    private bool loading = true;
+    private bool error;
+
+    private string search = "";
+    private string carrier = "";
+    private string origin = "";
+    private string destination = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadQuotes();
+    }
+
+    private async Task LoadQuotes()
+    {
+        loading = true;
+        error = false;
+
+        try
+        {
+            var client =
+                HttpClientFactory.CreateClient("ORXApi");
+
+            var url =
+                $"freight-quotes?page={currentPage}" +
+                $"&pageSize={pageSize}" +
+                $"&search={Uri.EscapeDataString(search)}" +
+                $"&carrier={Uri.EscapeDataString(carrier)}" +
+                $"&origin={Uri.EscapeDataString(origin)}" +
+                $"&destination={Uri.EscapeDataString(destination)}";
+
+            var response =
+                await client.GetFromJsonAsync<PagedResponse<FreightQuoteDto>>(url);
+
+            if (response != null)
+            {
+                quotes = response.Data ?? new List<FreightQuoteDto>();
+
+                totalRecords = response.TotalRecords;
+                totalPages = response.TotalPages;
+            }
+        }
+        catch
+        {
+            error = true;
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private async Task ApplyFilters()
+    {
+        currentPage = 1;
+        await LoadQuotes();
+    }
+
+    private async Task ResetFilters()
+    {
+        search = "";
+        carrier = "";
+        origin = "";
+        destination = "";
+
+        currentPage = 1;
+
+        await LoadQuotes();
+    }
+
+    private async Task PreviousPage()
+    {
+        if (currentPage > 1)
+        {
+            currentPage--;
+            await LoadQuotes();
+        }
+    }
+
+    private async Task NextPage()
+    {
+        if (currentPage < totalPages)
+        {
+            currentPage++;
+            await LoadQuotes();
+        }
+    }
+
+    private decimal GetSurcharges(FreightQuoteDto quote)
+    {
+        return (quote.Baf ?? 0)
+             + (quote.LocalCharges ?? 0)
+             + (quote.CongestionSurcharge ?? 0)
+             + (quote.OtherSurcharges ?? 0);
+    }
+
+    private string FormatMoney(decimal? value, string? currency)
+    {
+        if (!value.HasValue)
+            return "—";
+
+        return $"{currency ?? ""} {value.Value:N2}";
+    }
+
+    public class PagedResponse<T>
+    {
+        public List<T>? Data { get; set; }
+
+        public int Page { get; set; }
+
+        public int PageSize { get; set; }
+
+        public int TotalRecords { get; set; }
+
+        public int TotalPages { get; set; }
+    }
+
+    public class FreightQuoteDto
+    {
+        public string QuoteId { get; set; } = "";
+
+        public string? CustomerId { get; set; }
+
+        public string? Origin { get; set; }
+
+        public string? Destination { get; set; }
+
+        public string? Carrier { get; set; }
+
+        public string? ContainerType { get; set; }
+
+        public int? EquipmentQuantity { get; set; }
+
+        public decimal? BaseFreight { get; set; }
+
+        public decimal? Baf { get; set; }
+
+        public decimal? LocalCharges { get; set; }
+
+        public decimal? CongestionSurcharge { get; set; }
+
+        public decimal? OtherSurcharges { get; set; }
+
+        public decimal? TotalCost { get; set; }
+
+        public string? Currency { get; set; }
+
+        public DateOnly? ValidFrom { get; set; }
+
+        public DateOnly? ValidUntil { get; set; }
+
+        public string? Source { get; set; }
+    }
+}

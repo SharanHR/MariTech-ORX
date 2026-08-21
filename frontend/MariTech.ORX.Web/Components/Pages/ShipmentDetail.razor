@@ -1,0 +1,231 @@
+@page "/shipments/{ShipmentId}"
+@using System.Net.Http.Json
+@inject IHttpClientFactory HttpClientFactory
+@inject NavigationManager NavigationManager
+
+<PageTitle>@(model?.Shipment?.ShipmentId ?? "Shipment") | MariTech ORX</PageTitle>
+
+<div class="shipment-detail-page">
+    @if (loading)
+    {
+        <div class="detail-state">Loading shipment workspace...</div>
+    }
+    else if (!string.IsNullOrWhiteSpace(errorMessage))
+    {
+        <div class="detail-error">
+            <h2>Unable to load shipment</h2>
+            <p>@errorMessage</p>
+            <button @onclick="LoadShipment">Retry</button>
+        </div>
+    }
+    else if (model is not null)
+    {
+        <div class="detail-topbar">
+            <div>
+                <button class="back-link" @onclick="BackToShipments">← Shipments</button>
+                <div class="detail-title-row">
+                    <h1>@model.Shipment.ShipmentId</h1>
+                    <span class="status-pill">@(model.Shipment.Status ?? "Unknown")</span>
+                </div>
+                <p>@model.Shipment.Origin → @model.Shipment.Destination</p>
+            </div>
+            <div class="detail-top-actions">
+                <span class="live-badge">● Live Database</span>
+                <button class="secondary-button" @onclick="CreateAnotherShipment">+ New Shipment</button>
+            </div>
+        </div>
+
+        <div class="detail-metrics">
+            <div><span>ETA</span><strong>@(model.Shipment.PlannedEta?.ToString("dd MMM yyyy") ?? "—")</strong></div>
+            <div><span>Carrier</span><strong>@(model.Shipment.Carrier ?? "Not assigned")</strong></div>
+            <div><span>Incoterm</span><strong>@(model.Trade?.Incoterm ?? "—")</strong></div>
+            <div><span>Trade Value</span><strong>@(model.Trade?.TradeValue?.ToString("N2") ?? "—") @(model.Trade?.Currency ?? "")</strong></div>
+            <div><span>Risk Score</span><strong>@(model.Shipment.RiskScore?.ToString("0.##") ?? "—")</strong></div>
+        </div>
+
+        <div class="detail-grid">
+            <section class="detail-card">
+                <div class="card-heading"><h2>Overview</h2></div>
+                <div class="detail-pairs">
+                    <div><span>Exporter</span><strong>@(model.Trade?.Seller ?? model.Shipment.Shipper ?? "—")</strong></div>
+                    <div><span>Buyer / Importer</span><strong>@(model.Trade?.Buyer ?? model.Shipment.Consignee ?? "—")</strong></div>
+                    <div><span>Product</span><strong>@(model.Trade?.Commodity ?? "—")</strong></div>
+                    <div><span>HS Code</span><strong>@(model.Cargo?.HsCode ?? "—")</strong></div>
+                    <div><span>Quantity</span><strong>@(model.Cargo?.Quantity?.ToString("0.##") ?? "—") @(model.Cargo?.QuantityUnit ?? "")</strong></div>
+                    <div><span>Booking Reference</span><strong>@(model.Shipment.BookingReference ?? "—")</strong></div>
+                    <div><span>Port of Loading</span><strong>@(model.Shipment.PortOfLoading ?? "—")</strong></div>
+                    <div><span>Port of Discharge</span><strong>@(model.Shipment.PortOfDischarge ?? "—")</strong></div>
+                </div>
+            </section>
+
+            <section class="detail-card">
+                <div class="card-heading"><h2>Cargo</h2></div>
+                <div class="detail-pairs">
+                    <div><span>Shipment Mode</span><strong>@(model.Workflow?.ShipmentMode ?? "—")</strong></div>
+                    <div><span>Container Type</span><strong>@(model.Workflow?.ContainerType ?? "—")</strong></div>
+                    <div><span>Containers</span><strong>@(model.Workflow?.NumberOfContainers?.ToString() ?? "—")</strong></div>
+                    <div><span>Gross Weight</span><strong>@(model.Workflow?.GrossWeight?.ToString("0.##") ?? "—") kg</strong></div>
+                    <div><span>Volume</span><strong>@(model.Workflow?.Volume?.ToString("0.##") ?? "—") CBM</strong></div>
+                    <div><span>Dangerous Goods</span><strong>@(model.Workflow?.DangerousGoods ?? model.Cargo?.DangerousGoods ?? "—")</strong></div>
+                    <div><span>Temperature Controlled</span><strong>@(model.Workflow?.TemperatureControlled == true ? "Yes" : "No")</strong></div>
+                </div>
+            </section>
+
+            <section class="detail-card wide">
+                <div class="card-heading"><h2>Services</h2><span>@(model.Workflow?.Services?.Count ?? 0) selected</span></div>
+                <div class="chip-list">
+                    @if (model.Workflow?.Services?.Count > 0)
+                    {
+                        foreach (var service in model.Workflow.Services)
+                        {
+                            <span>@PrettyService(service)</span>
+                        }
+                    }
+                    else
+                    {
+                        <span class="muted">No services selected.</span>
+                    }
+                </div>
+            </section>
+
+            <section class="detail-card wide">
+                <div class="card-heading"><h2>Documents</h2><span>ORX checklist</span></div>
+                <div class="document-grid">
+                    @foreach (var document in model.Documents)
+                    {
+                        <div class="detail-document">
+                            <div><strong>@document.DocumentType</strong><span>@document.DocumentId</span></div>
+                            <span class="document-status">@document.Status</span>
+                        </div>
+                    }
+                </div>
+            </section>
+
+            <section class="detail-card wide">
+                <div class="card-heading"><h2>Timeline</h2></div>
+                <div class="timeline">
+                    <div class="timeline-item done"><span>✓</span><strong>Shipment Created</strong><small>Persisted to ORX database</small></div>
+                    <div class="timeline-item current"><span>●</span><strong>@(model.Shipment.Status ?? "Planned")</strong><small>Current operational state</small></div>
+                    <div class="timeline-item"><span>○</span><strong>Destination Port</strong><small>Upcoming</small></div>
+                    <div class="timeline-item"><span>○</span><strong>Final Delivery</strong><small>@(model.Trade?.RequiredDeliveryDate?.ToString("dd MMM yyyy") ?? "Upcoming")</small></div>
+                </div>
+            </section>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public string ShipmentId { get; set; } = "";
+
+    private bool loading = true;
+    private string? errorMessage;
+    private ShipmentDetailModel? model;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await LoadShipment();
+    }
+
+    private void BackToShipments() => NavigationManager.NavigateTo("/shipments");
+
+    private void CreateAnotherShipment() => NavigationManager.NavigateTo("/shipments/new");
+
+    private async Task LoadShipment()
+    {
+        loading = true;
+        errorMessage = null;
+
+        try
+        {
+            var client = HttpClientFactory.CreateClient("ORXApi");
+            model = await client.GetFromJsonAsync<ShipmentDetailModel>($"shipments/{Uri.EscapeDataString(ShipmentId)}");
+            if (model is null)
+                errorMessage = "Shipment not found.";
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private static string PrettyService(string key) => key switch
+    {
+        "pickup" => "Pickup Transportation",
+        "freight" => "Freight Forwarding",
+        "customs" => "Customs Clearance",
+        "insurance" => "Marine Insurance",
+        "warehousing" => "Warehousing",
+        "delivery" => "Destination Delivery",
+        "docs" => "Documentation Support",
+        _ => key
+    };
+
+    private sealed class ShipmentDetailModel
+    {
+        public ShipmentDto Shipment { get; set; } = new();
+        public TradeDto? Trade { get; set; }
+        public CargoDto? Cargo { get; set; }
+        public WorkflowDto? Workflow { get; set; }
+        public List<DocumentDto> Documents { get; set; } = new();
+    }
+
+    private sealed class ShipmentDto
+    {
+        public string ShipmentId { get; set; } = "";
+        public string? Shipper { get; set; }
+        public string? Consignee { get; set; }
+        public string? Carrier { get; set; }
+        public string? BookingReference { get; set; }
+        public string? Origin { get; set; }
+        public string? Destination { get; set; }
+        public string? PortOfLoading { get; set; }
+        public string? PortOfDischarge { get; set; }
+        public DateTime? PlannedEta { get; set; }
+        public string? Status { get; set; }
+        public decimal? RiskScore { get; set; }
+    }
+
+    private sealed class TradeDto
+    {
+        public string? Buyer { get; set; }
+        public string? Seller { get; set; }
+        public string? Commodity { get; set; }
+        public decimal? TradeValue { get; set; }
+        public string? Currency { get; set; }
+        public string? Incoterm { get; set; }
+        public DateOnly? RequiredDeliveryDate { get; set; }
+    }
+
+    private sealed class CargoDto
+    {
+        public string? HsCode { get; set; }
+        public decimal? Quantity { get; set; }
+        public string? QuantityUnit { get; set; }
+        public decimal? GrossWeight { get; set; }
+        public decimal? Volume { get; set; }
+        public string? DangerousGoods { get; set; }
+    }
+
+    private sealed class WorkflowDto
+    {
+        public string? ShipmentMode { get; set; }
+        public string? ContainerType { get; set; }
+        public int? NumberOfContainers { get; set; }
+        public decimal? GrossWeight { get; set; }
+        public decimal? Volume { get; set; }
+        public string? DangerousGoods { get; set; }
+        public bool? TemperatureControlled { get; set; }
+        public List<string> Services { get; set; } = new();
+    }
+
+    private sealed class DocumentDto
+    {
+        public string DocumentId { get; set; } = "";
+        public string? DocumentType { get; set; }
+        public string? Status { get; set; }
+    }
+}

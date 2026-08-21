@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk.Worker">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>dotnet-MariTech.ORX.Worker-6d844c19-716f-4412-a7a5-01e9ff52aa37</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.11" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\MariTech.ORX.Application\MariTech.ORX.Application.csproj" />
+    <ProjectReference Include="..\MariTech.ORX.Infrastructure\MariTech.ORX.Infrastructure.csproj" />
+  </ItemGroup>
+</Project>

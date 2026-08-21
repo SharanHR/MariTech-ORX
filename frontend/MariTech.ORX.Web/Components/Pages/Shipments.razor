@@ -1,0 +1,328 @@
+@page "/shipments"
+@using System.Net.Http.Json
+@inject IHttpClientFactory HttpClientFactory
+@inject NavigationManager NavigationManager
+
+<PageTitle>Shipments | MariTech ORX</PageTitle>
+
+<div class="shipments-page">
+
+    <div class="page-header">
+        <div>
+            <h1>Shipments</h1>
+            <p>Monitor active shipments across the network.</p>
+        </div>
+
+        <div class="page-header-actions">
+            <button class="new-shipment-compact" @onclick="CreateNewShipment">
+                ＋ New Shipment
+            </button>
+
+            <div class="live-status">
+            <span></span>
+            Live Database
+            </div>
+        </div>
+    </div>
+
+    @if (loading)
+    {
+        <div class="state-card">
+            <p>Loading shipments...</p>
+        </div>
+    }
+    else if (error)
+    {
+        <div class="error-card">
+            <h3>Unable to load shipments</h3>
+            <p>Check that the ORX API is running.</p>
+
+            <button @onclick="LoadShipments">
+                Retry
+            </button>
+        </div>
+    }
+    else
+    {
+        <div class="summary-row">
+
+            <div class="summary-card">
+                <span>Total Records</span>
+                <strong>@totalRecords</strong>
+            </div>
+
+            <div class="summary-card">
+                <span>Current Page</span>
+                <strong>@currentPage</strong>
+            </div>
+
+            <div class="summary-card">
+                <span>Total Pages</span>
+                <strong>@totalPages</strong>
+            </div>
+
+        </div>
+
+        <div class="table-card">
+
+            <div class="table-header">
+                <div>
+                    <h2>Shipment Network</h2>
+                    <p>Real-time records from SQL Server</p>
+                </div>
+
+                <button class="refresh-button"
+                        @onclick="LoadShipments">
+                    ↻ Refresh
+                </button>
+            </div>
+
+            @if (shipments.Count == 0)
+            {
+                <div class="empty-state">
+                    No shipments found.
+                </div>
+            }
+            else
+            {
+                <div class="table-wrapper">
+
+                    <table>
+
+                        <thead>
+                            <tr>
+                                <th>Shipment ID</th>
+                                <th>Trade ID</th>
+                                <th>Carrier</th>
+                                <th>Origin</th>
+                                <th>Destination</th>
+                                <th>ETD</th>
+                                <th>ETA</th>
+                                <th>Status</th>
+                                <th>Risk</th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+
+                            @foreach (var shipment in shipments)
+                            {
+                                <tr>
+
+                                    <td class="shipment-id">
+                                        @shipment.ShipmentId
+                                    </td>
+
+                                    <td>
+                                        @shipment.TradeId
+                                    </td>
+
+                                    <td>
+                                        @(shipment.Carrier ?? "—")
+                                    </td>
+
+                                    <td>
+                                        @(shipment.Origin ?? "—")
+                                    </td>
+
+                                    <td>
+                                        @(shipment.Destination ?? "—")
+                                    </td>
+
+                                    <td>
+                                        @(shipment.PlannedEtd?.ToString("dd MMM yyyy") ?? "—")
+                                    </td>
+
+                                    <td>
+                                        @(shipment.PlannedEta?.ToString("dd MMM yyyy") ?? "—")
+                                    </td>
+
+                                    <td>
+                                        <span class="@GetStatusClass(shipment.Status)">
+                                            @(shipment.Status ?? "Unknown")
+                                        </span>
+                                    </td>
+
+                                    <td>
+                                        <span class="@GetRiskClass(shipment.RiskScore)">
+                                            @(shipment.RiskScore?.ToString("0") ?? "—")
+                                        </span>
+                                    </td>
+
+                                </tr>
+                            }
+
+                        </tbody>
+
+                    </table>
+
+                </div>
+
+                <div class="pagination">
+
+                    <button disabled="@(currentPage <= 1)"
+                            @onclick="PreviousPage">
+                        ← Previous
+                    </button>
+
+                    <span>
+                        Page <strong>@currentPage</strong> of
+                        <strong>@totalPages</strong>
+                    </span>
+
+                    <button disabled="@(currentPage >= totalPages)"
+                            @onclick="NextPage">
+                        Next →
+                    </button>
+
+                </div>
+            }
+
+        </div>
+    }
+
+</div>
+
+@code {
+
+    private List<ShipmentDto> shipments = new();
+
+    private int currentPage = 1;
+
+    private int pageSize = 20;
+
+    private int totalRecords;
+
+    private int totalPages;
+
+    private bool loading = true;
+
+    private bool error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadShipments();
+    }
+
+    private void CreateNewShipment()
+    {
+        NavigationManager.NavigateTo("/shipments/new");
+    }
+
+    private async Task LoadShipments()
+    {
+        loading = true;
+        error = false;
+
+        try
+        {
+            var client =
+                HttpClientFactory.CreateClient("ORXApi");
+
+            var response =
+                await client.GetFromJsonAsync<PagedResponse<ShipmentDto>>(
+                    $"shipments?page={currentPage}&pageSize={pageSize}"
+                );
+
+            if (response != null)
+            {
+                shipments = response.Data ?? new List<ShipmentDto>();
+
+                totalRecords = response.TotalRecords;
+
+                totalPages = response.TotalPages;
+            }
+        }
+        catch
+        {
+            error = true;
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private async Task PreviousPage()
+    {
+        if (currentPage > 1)
+        {
+            currentPage--;
+
+            await LoadShipments();
+        }
+    }
+
+    private async Task NextPage()
+    {
+        if (currentPage < totalPages)
+        {
+            currentPage++;
+
+            await LoadShipments();
+        }
+    }
+
+    private string GetStatusClass(string? status)
+    {
+        if (string.IsNullOrWhiteSpace(status))
+            return "status unknown";
+
+        return status.ToLowerInvariant() switch
+        {
+            "delivered" => "status delivered",
+            "in transit" => "status transit",
+            "pending" => "status pending",
+            "delayed" => "status delayed",
+            _ => "status unknown"
+        };
+    }
+
+    private string GetRiskClass(decimal? score)
+    {
+        if (!score.HasValue)
+            return "risk unknown";
+
+        if (score >= 70)
+            return "risk high";
+
+        if (score >= 40)
+            return "risk medium";
+
+        return "risk low";
+    }
+
+    public class PagedResponse<T>
+    {
+        public List<T>? Data { get; set; }
+
+        public int Page { get; set; }
+
+        public int PageSize { get; set; }
+
+        public int TotalRecords { get; set; }
+
+        public int TotalPages { get; set; }
+    }
+
+    public class ShipmentDto
+    {
+        public string ShipmentId { get; set; } = "";
+
+        public string TradeId { get; set; } = "";
+
+        public string? Carrier { get; set; }
+
+        public string? Origin { get; set; }
+
+        public string? Destination { get; set; }
+
+        public DateTime? PlannedEtd { get; set; }
+
+        public DateTime? PlannedEta { get; set; }
+
+        public string? Status { get; set; }
+
+        public decimal? RiskScore { get; set; }
+    }
+}

@@ -1,0 +1,502 @@
+@page "/"
+@page "/dashboard"
+
+@using System.Net.Http.Json
+@using Microsoft.AspNetCore.Components.Web
+
+@inject IHttpClientFactory HttpClientFactory
+@inject NavigationManager NavigationManager
+
+<PageTitle>Dashboard | MariTech ORX</PageTitle>
+
+<div class="orx-dashboard">
+
+    <div class="dashboard-commandbar">
+        <div class="dashboard-search-wrap">
+            <div class="dashboard-search">
+                <span class="search-icon">⌕</span>
+                <input value="@searchTerm"
+                       @oninput="OnSearchInput"
+                       @onkeydown="OnSearchKeyDown"
+                       placeholder="Search shipment, order, container, document..."
+                       aria-label="Global search" />
+                <button type="button" class="search-submit" @onclick="RunGlobalSearch">Search</button>
+            </div>
+
+            @if (searchOpen)
+            {
+                <div class="search-results">
+                    @if (searchLoading)
+                    {
+                        <div class="search-empty">Searching ORX...</div>
+                    }
+                    else if (searchResults.Count == 0)
+                    {
+                        <div class="search-empty">No matching shipment, order, container or document.</div>
+                    }
+                    else
+                    {
+                        @foreach (var result in searchResults)
+                        {
+                            <button type="button" class="search-result" @onclick="() => OpenSearchResult(result)">
+                                <span class="search-result-type">@result.Type</span>
+                                <span class="search-result-main">@result.Title</span>
+                                <span class="search-result-sub">@result.Subtitle</span>
+                            </button>
+                        }
+                    }
+                </div>
+            }
+        </div>
+
+        <button type="button" class="new-shipment-button" @onclick="OpenNewShipment">
+            <span>＋</span> New Shipment
+        </button>
+    </div>
+
+    @if (loading)
+    {
+        <div class="dashboard-state">Loading ORX intelligence...</div>
+    }
+    else if (error)
+    {
+        <div class="dashboard-error">
+            <h3>Unable to load ORX data</h3>
+            <p>Make sure MariTech.ORX.Api is running and connected to MARITECH_ORX.</p>
+            <button @onclick="LoadDashboard">Retry</button>
+        </div>
+    }
+    else
+    {
+        <section class="kpi-grid">
+            <div class="kpi-card kpi-blue">
+                <div><span>Active Shipments</span><strong>@shipments.Count</strong><small>@inTransitCount currently moving</small></div>
+                <div class="kpi-icon">🚢</div>
+            </div>
+            <div class="kpi-card kpi-purple">
+                <div><span>In Transit</span><strong>@inTransitCount</strong><small>Live movement</small></div>
+                <div class="kpi-icon">🚚</div>
+            </div>
+            <div class="kpi-card kpi-green">
+                <div><span>Delivered (This Month)</span><strong>@deliveredCount</strong><small>Completed shipments</small></div>
+                <div class="kpi-icon">✓</div>
+            </div>
+            <div class="kpi-card kpi-orange">
+                <div><span>Pending Documents</span><strong>@pendingDocuments</strong><small>Awaiting action</small></div>
+                <div class="kpi-icon">▤</div>
+            </div>
+            <div class="kpi-card kpi-navy">
+                <div><span>Total Freight Spend</span><strong>@FormatMoney(totalFreightSpend)</strong><small>From live freight quotes</small></div>
+                <div class="kpi-icon">₹</div>
+            </div>
+        </section>
+
+        <section class="dashboard-top-grid">
+            <div class="panel shipment-panel">
+                <div class="panel-header">
+                    <div><h2>Shipment Overview</h2><p>Live movement across the ORX trade network.</p></div>
+                    <div class="panel-header-right"><span class="record-count">@shipments.Count active records</span><button class="period-button">This Month ▾</button></div>
+                </div>
+                <div class="orx-svg-map" aria-label="Live trade network map">
+                    <img src="assets/world-map.svg" alt="World map" class="orx-map-image" />
+                    <svg class="orx-map-overlay" viewBox="0 0 360 360" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+                        @foreach (var route in MapRoutes)
+                        {
+                            var o = ToMapPoint(route.OriginLatitude, route.OriginLongitude);
+                            var d = ToMapPoint(route.DestinationLatitude, route.DestinationLongitude);
+                            var midX = (o.X + d.X) / 2m;
+                            var midY = Math.Min(o.Y, d.Y) - 18m;
+                            <path d="@ArcPath(o.X, o.Y, d.X, d.Y, midX, midY)"
+                                  class="route-line @route.StatusClass" />
+                            <circle cx="@o.X" cy="@o.Y" r="3.2" class="route-point @route.StatusClass" />
+                            <circle cx="@d.X" cy="@d.Y" r="3.2" class="route-point @route.StatusClass" />
+                        }
+                        @foreach (var marker in VisibleMarkers)
+                        {
+                            var p = ToMapPoint(marker.Latitude, marker.Longitude);
+                            <g class="map-marker">
+                                <circle cx="@p.X" cy="@p.Y" r="4.5" class="marker-ring @marker.StatusClass" />
+                                <rect x="@(p.X - 27)" y="@(p.Y - 27)" width="54" height="17" rx="5" class="marker-label-bg" />
+                                <text x="@p.X" y="@(p.Y - 15)" text-anchor="middle" class="marker-label">@ShortLocation(marker.Name)</text>
+                            </g>
+                        }
+                    </svg>
+                </div>
+                <div class="map-legend">
+                    <span><i class="map-dot blue"></i>In Transit <b>@inTransitCount</b></span>
+                    <span><i class="map-dot purple"></i>Departed <b>@departedCount</b></span>
+                    <span><i class="map-dot orange"></i>Arrived at Port <b>@arrivedPortCount</b></span>
+                    <span><i class="map-dot teal"></i>Delivered <b>@deliveredCount</b></span>
+                    <span><i class="map-dot red"></i>Delayed / At Risk <b>@atRiskCount</b></span>
+                </div>
+            </div>
+
+            <div class="panel ai-insights-card">
+    <div class="panel-header">
+        <h2>AI Insights</h2>
+        <a href="/ai-insights">View All</a>
+    </div>
+
+    <div class="panel-scroll">
+        @if (recommendationList.Count == 0 && networkEventList.Count == 0)
+        {
+            <div class="empty-mini">No intelligence signals available.</div>
+        }
+        else
+        {
+            @foreach (var rec in recommendationList)
+            {
+                <div class="insight-card">
+                    <div class="insight-icon @(InsightTone(rec.Status))">✦</div>
+
+                    <div>
+                        <strong>@(rec.RecommendationType ?? "ORX Recommendation")</strong>
+                        <p>
+                            @Truncate(
+                                rec.Action ?? rec.Reason ?? "Operational recommendation",
+                                120)
+                        </p>
+                    </div>
+                </div>
+            }
+
+            @foreach (var ev in networkEventList)
+            {
+                <div class="insight-card">
+                    <div class="insight-icon @SeverityTone(ev.Severity)">!</div>
+
+                    <div>
+                        <strong>@(ev.EventType ?? "Network Event")</strong>
+                        <p>
+                            @Truncate(
+                                ev.Description ?? ev.Location ?? "Operational signal detected",
+                                120)
+                        </p>
+                    </div>
+                </div>
+            }
+        }
+    </div>
+</div>
+
+            <div class="panel milestones-card">
+                <div class="panel-header"><h2>Upcoming Milestones</h2><a href="/shipments">View All</a></div>
+                <div class="panel-scroll">
+                    @foreach (var item in UpcomingMilestones)
+                    {
+                        <div class="milestone-row">
+                            <div class="milestone-date"><strong>@item.Date.Day</strong><span>@item.Date.ToString("MMM").ToUpperInvariant()</span></div>
+                            <div class="milestone-body"><strong>@item.Title</strong><p>@item.ShipmentId • @item.Route</p></div>
+                            <span class="status-pill @item.StatusClass">@item.StatusLabel</span>
+                        </div>
+                    }
+                </div>
+            </div>
+        </section>
+
+        <section class="dashboard-bottom-grid">
+            <div class="panel scroll-panel recent-panel">
+                <div class="panel-header"><h2>Recent Shipments</h2><a href="/shipments">View All</a></div>
+                <div class="panel-scroll">
+                    <table class="mini-table">
+                        <thead><tr><th>Shipment ID</th><th>Origin</th><th>Destination</th><th>Status</th><th>ETD / ETA</th></tr></thead>
+                        <tbody>
+                            @foreach (var s in shipments)
+                            {
+                                <tr>
+                                    <td class="strong-cell">@s.ShipmentId</td>
+                                    <td>@s.Origin</td><td>@s.Destination</td>
+                                    <td><span class="status-badge @ShipmentStatusClass(s.Status)">@s.Status</span></td>
+                                    <td>@FormatDate(s.PlannedEtd) / @FormatDate(s.PlannedEta)</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="panel spend-panel">
+                <div class="panel-header"><h2>Spend Analytics</h2><button class="period-button">This Month ▾</button></div>
+                <div class="spend-content">
+                    <div class="donut" style="background:@SpendConicGradient"><div class="donut-hole"><span>Total Spend</span><strong>@FormatMoney(totalFreightSpend)</strong></div></div>
+                    <div class="spend-legend">
+                        @foreach (var item in spendBreakdown)
+                        {
+                            <div class="spend-row"><span><i class="legend-dot @item.CssClass"></i>@item.Label</span><strong>@FormatMoney(item.Value)<small> (@item.Percent.ToString("0.0")%)</small></strong></div>
+                        }
+                    </div>
+                </div>
+            </div>
+
+            <div class="right-stack">
+                <div class="panel scroll-panel notification-panel">
+                    <div class="panel-header"><h2>Notifications</h2><a href="/network-intelligence">View All</a></div>
+                    <div class="panel-scroll">
+                        @foreach (var ev in networkEventList)
+                        {
+                            <div class="activity-row">
+                                <span class="activity-icon @SeverityTone(ev.Severity)">●</span>
+                                <div><strong>@(ev.EventType ?? "Network Event")</strong><p>@Truncate(ev.Description ?? ev.Location ?? "Signal received", 90)</p></div>
+                                <time>@RelativeTime(ev.StartTime)</time>
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                <div class="panel market-panel">
+                    <div class="panel-header"><h2>ORX Snapshot</h2><a href="/network-intelligence">View More</a></div>
+                    <div class="market-grid">
+                        <div><span>Trade Orders</span><strong>@tradeOrders</strong></div>
+                        <div><span>Network Events</span><strong>@networkEvents</strong></div>
+                        <div><span>Predictions</span><strong>@predictions</strong></div>
+                        <div><span>Recommendations</span><strong>@recommendations</strong></div>
+                        <div><span>Pending Actions</span><strong>@pendingActions</strong></div>
+                        <div><span>Pending Documents</span><strong>@pendingDocuments</strong></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    }
+</div>
+
+@code {
+    private bool loading = true;
+    private bool error;
+    private string searchTerm = string.Empty;
+    private bool searchOpen;
+    private bool searchLoading;
+    private List<SearchResult> searchResults = new();
+
+    private List<LocationDto> locations = new();
+    private List<ShipmentMapDto> shipments = new();
+    private List<RecommendationDto> recommendationList = new();
+    private List<NetworkEventDto> networkEventList = new();
+    private List<DocumentDto> documentList = new();
+    private List<FreightQuoteDto> freightQuotes = new();
+
+    private int tradeOrders;
+    private int networkEvents;
+    private int highRisks;
+    private int predictions;
+    private int recommendations;
+    private int pendingActions;
+    private int inTransitCount;
+    private int deliveredCount;
+    private int departedCount;
+    private int arrivedPortCount;
+    private int atRiskCount;
+    private int pendingDocuments;
+    private decimal totalFreightSpend;
+
+    private IEnumerable<MapRoute> MapRoutes => shipments
+        .Select(s => BuildRoute(s))
+        .Where(x => x != null)!
+        .Cast<MapRoute>();
+
+    private IEnumerable<MapMarker> VisibleMarkers => MapRoutes
+        .SelectMany(x => new[]
+        {
+            new MapMarker(x.OriginName, x.OriginLatitude, x.OriginLongitude, x.StatusClass),
+            new MapMarker(x.DestinationName, x.DestinationLatitude, x.DestinationLongitude, x.StatusClass)
+        })
+        .GroupBy(x => $"{x.Name}|{x.Latitude:0.000}|{x.Longitude:0.000}")
+        .Select(x => x.First())
+        ;
+
+    private List<MilestoneItem> UpcomingMilestones => shipments
+        .SelectMany(s => new[]
+        {
+            s.PlannedEtd.HasValue ? new MilestoneItem(s.PlannedEtd.Value, "Departure", s.ShipmentId, $"{s.Origin} → {s.Destination}", "On Track", "green") : null,
+            s.PlannedEta.HasValue ? new MilestoneItem(s.PlannedEta.Value, "ETA at Destination", s.ShipmentId, $"{s.Origin} → {s.Destination}", IsRisk(s) ? "At Risk" : "On Track", IsRisk(s) ? "orange" : "green") : null
+        })
+        .Where(x => x != null)
+        .Cast<MilestoneItem>()
+        .OrderBy(x => x.Date)
+        .ToList();
+
+    private List<SpendItem> spendBreakdown = new();
+
+    private string SpendConicGradient
+    {
+        get
+        {
+            var total = spendBreakdown.Sum(x => x.Value);
+            if (total <= 0) return "conic-gradient(#dbe4ee 0 100%)";
+            var colors = new[] { "#0b2a5b", "#5a4bd8", "#e18b13", "#17a673", "#d64545" };
+            decimal acc = 0;
+            var pieces = new List<string>();
+            for (int i = 0; i < spendBreakdown.Count; i++)
+            {
+                var start = acc / total * 100m;
+                acc += spendBreakdown[i].Value;
+                var end = acc / total * 100m;
+                pieces.Add($"{colors[i % colors.Length]} {start:0.##}% {end:0.##}%");
+            }
+            return $"conic-gradient({string.Join(", ", pieces)})";
+        }
+    }
+
+    protected override async Task OnInitializedAsync() => await LoadDashboard();
+
+    private void OpenNewShipment() => NavigationManager.NavigateTo("/shipments/new");
+
+    private void OnSearchInput(ChangeEventArgs args)
+    {
+        searchTerm = args.Value?.ToString() ?? string.Empty;
+        if (searchTerm.Trim().Length < 2) { searchResults.Clear(); searchOpen = false; }
+    }
+
+    private async Task OnSearchKeyDown(KeyboardEventArgs args)
+    {
+        if (args.Key == "Enter") await RunGlobalSearch();
+    }
+
+    private async Task RunGlobalSearch()
+    {
+        var query = searchTerm.Trim();
+        if (query.Length < 2) { searchResults.Clear(); searchOpen = false; return; }
+        searchLoading = true; searchOpen = true;
+        try
+        {
+            var client = HttpClientFactory.CreateClient("ORXApi");
+            searchResults = await client.GetFromJsonAsync<List<SearchResult>>($"search?q={Uri.EscapeDataString(query)}&limit=8") ?? new();
+        }
+        catch { searchResults = new(); }
+        finally { searchLoading = false; }
+    }
+
+    private void OpenSearchResult(SearchResult result)
+    {
+        searchOpen = false;
+        if (!string.IsNullOrWhiteSpace(result.Href)) NavigationManager.NavigateTo(result.Href);
+    }
+
+    private async Task LoadDashboard()
+    {
+        loading = true; error = false;
+        try
+        {
+            var client = HttpClientFactory.CreateClient("ORXApi");
+            var locationTask = client.GetFromJsonAsync<List<LocationDto>>("locations");
+            var shipmentTask = client.GetFromJsonAsync<PagedResponse<ShipmentMapDto>>("shipments?page=1&pageSize=100");
+            var tradeTask = client.GetFromJsonAsync<PagedResponse<TradeDto>>("trade-orders?page=1&pageSize=1");
+            var eventTask = client.GetFromJsonAsync<PagedResponse<NetworkEventDto>>("network-events?page=1&pageSize=100");
+            var riskTask = client.GetFromJsonAsync<PagedResponse<RiskDto>>("risk-assessments?page=1&pageSize=100");
+            var predictionTask = client.GetFromJsonAsync<PagedResponse<PredictionDto>>("predictions?page=1&pageSize=1");
+            var recommendationTask = client.GetFromJsonAsync<PagedResponse<RecommendationDto>>("recommendations?page=1&pageSize=100");
+            var actionTask = client.GetFromJsonAsync<PagedResponse<ActionDto>>("actions?page=1&pageSize=100");
+            var documentTask = client.GetFromJsonAsync<PagedResponse<DocumentDto>>("documents?page=1&pageSize=100");
+            var quoteTask = client.GetFromJsonAsync<PagedResponse<FreightQuoteDto>>("freight-quotes?page=1&pageSize=100");
+
+            await Task.WhenAll(locationTask, shipmentTask, tradeTask, eventTask, riskTask, predictionTask, recommendationTask, actionTask, documentTask, quoteTask);
+
+            locations = locationTask.Result ?? new();
+            shipments = shipmentTask.Result?.Data ?? new();
+            tradeOrders = tradeTask.Result?.TotalRecords ?? 0;
+            networkEvents = eventTask.Result?.TotalRecords ?? 0;
+            networkEventList = eventTask.Result?.Data ?? new();
+            recommendationList = recommendationTask.Result?.Data ?? new();
+            recommendations = recommendationTask.Result?.TotalRecords ?? 0;
+            predictions = predictionTask.Result?.TotalRecords ?? 0;
+            highRisks = riskTask.Result?.Data?.Count(r => IsHighRisk(r.Severity)) ?? 0;
+            pendingActions = actionTask.Result?.Data?.Count(a => string.Equals(a.Status, "Pending", StringComparison.OrdinalIgnoreCase)) ?? 0;
+            documentList = documentTask.Result?.Data ?? new();
+            pendingDocuments = documentList.Count(d => !IsDocumentComplete(d.Status));
+            freightQuotes = quoteTask.Result?.Data ?? new();
+
+            inTransitCount = shipments.Count(s => ContainsStatus(s.Status, "transit"));
+            deliveredCount = shipments.Count(s => ContainsStatus(s.Status, "deliver"));
+            departedCount = shipments.Count(s => ContainsStatus(s.Status, "depart") || ContainsStatus(s.Status, "plan"));
+            arrivedPortCount = shipments.Count(s => ContainsStatus(s.Status, "port") || ContainsStatus(s.Status, "arrived"));
+            atRiskCount = shipments.Count(IsRisk);
+            totalFreightSpend = freightQuotes.Sum(q => q.TotalCost ?? 0m);
+
+            spendBreakdown = new List<SpendItem>
+            {
+                new("Base Freight", freightQuotes.Sum(q => q.BaseFreight ?? 0m), "base"),
+                new("BAF", freightQuotes.Sum(q => q.Baf ?? 0m), "baf"),
+                new("Local Charges", freightQuotes.Sum(q => q.LocalCharges ?? 0m), "local"),
+                new("Congestion Surcharge", freightQuotes.Sum(q => q.CongestionSurcharge ?? 0m), "congestion"),
+                new("Other Surcharges", freightQuotes.Sum(q => q.OtherSurcharges ?? 0m), "other")
+            };
+
+            var total = spendBreakdown.Sum(x => x.Value);
+            foreach (var item in spendBreakdown) item.Percent = total > 0 ? item.Value / total * 100m : 0;
+        }
+        catch
+        {
+            error = true;
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private MapRoute? BuildRoute(ShipmentMapDto s)
+    {
+        var origin = FindLocation(s.PortOfLoading ?? s.Origin);
+        var destination = FindLocation(s.PortOfDischarge ?? s.Destination);
+        if (origin is null || destination is null) return null;
+        return new MapRoute(s.ShipmentId, origin.Name, destination.Name, origin.Latitude, origin.Longitude, destination.Latitude, destination.Longitude, ShipmentStatusClass(s.Status), s.Status ?? "");
+    }
+
+    private LocationDto? FindLocation(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return null;
+        var q = value.Trim().ToLowerInvariant();
+        return locations.FirstOrDefault(x =>
+            x.Unlocode.Equals(q, StringComparison.OrdinalIgnoreCase) ||
+            x.LocationId.Equals(q, StringComparison.OrdinalIgnoreCase) ||
+            x.Name.Equals(value, StringComparison.OrdinalIgnoreCase) ||
+            x.Name.Contains(value, StringComparison.OrdinalIgnoreCase) ||
+            q.Contains(x.Name.ToLowerInvariant()));
+    }
+
+    private static (decimal X, decimal Y) ToMapPoint(decimal latitude, decimal longitude)
+    {
+        var x = (longitude + 180m);
+        var lat = (double)Math.Clamp(latitude, -84.5m, 84.5m) * Math.PI / 180.0;
+        var merc = Math.Log(Math.Tan(Math.PI / 4.0 + lat / 2.0));
+        var y = 180m - (decimal)(merc * 180.0 / Math.PI);
+        return (Math.Clamp(x, 2m, 358m), Math.Clamp(y, 10m, 350m));
+    }
+
+    private static string ArcPath(decimal x1, decimal y1, decimal x2, decimal y2, decimal cx, decimal cy) => $"M {x1:0.##} {y1:0.##} Q {cx:0.##} {cy:0.##} {x2:0.##} {y2:0.##}";
+    private static bool IsRisk(ShipmentMapDto s) => (s.RiskScore ?? 0) >= 70 || ContainsStatus(s.Status, "risk") || ContainsStatus(s.Status, "delay");
+    private static bool IsHighRisk(string? s) => string.Equals(s, "High", StringComparison.OrdinalIgnoreCase) || string.Equals(s, "Critical", StringComparison.OrdinalIgnoreCase);
+    private static bool ContainsStatus(string? value, string term) => !string.IsNullOrWhiteSpace(value) && value.Contains(term, StringComparison.OrdinalIgnoreCase);
+    private static bool IsDocumentComplete(string? status) => string.Equals(status, "Approved", StringComparison.OrdinalIgnoreCase) || string.Equals(status, "Complete", StringComparison.OrdinalIgnoreCase) || string.Equals(status, "Completed", StringComparison.OrdinalIgnoreCase);
+    private static string FormatDate(DateTime? date) => date.HasValue ? date.Value.ToString("dd MMM") : "—";
+    private static string FormatMoney(decimal value) => value <= 0 ? "₹0" : value >= 100000m ? $"₹{value / 100000m:0.##} L" : value >= 1000m ? $"₹{value / 1000m:0.##} K" : $"₹{value:0}";
+    private static string Truncate(string text, int length) => text.Length <= length ? text : text[..length] + "…";
+    private static string RelativeTime(DateTime? value)
+    {
+        if (!value.HasValue) return "";
+        var delta = DateTime.Now - value.Value;
+        if (delta.TotalMinutes < 60) return $"{Math.Max(1, (int)delta.TotalMinutes)}m ago";
+        if (delta.TotalHours < 24) return $"{(int)delta.TotalHours}h ago";
+        return $"{(int)delta.TotalDays}d ago";
+    }
+    private static string ShipmentStatusClass(string? status) => ContainsStatus(status, "deliver") ? "teal" : ContainsStatus(status, "risk") || ContainsStatus(status, "delay") ? "red" : ContainsStatus(status, "book") || ContainsStatus(status, "plan") || ContainsStatus(status, "document") ? "orange" : ContainsStatus(status, "depart") ? "purple" : "blue";
+    private static string SeverityTone(string? severity) => string.Equals(severity, "High", StringComparison.OrdinalIgnoreCase) || string.Equals(severity, "Critical", StringComparison.OrdinalIgnoreCase) ? "tone-red" : string.Equals(severity, "Medium", StringComparison.OrdinalIgnoreCase) ? "tone-orange" : "tone-blue";
+    private static string InsightTone(string? status) => string.Equals(status, "Completed", StringComparison.OrdinalIgnoreCase) ? "tone-green" : "tone-blue";
+    private static string ShortLocation(string name) => name.Length > 18 ? name[..18] + "…" : name;
+
+    public class SearchResult { public string Type { get; set; } = ""; public string Id { get; set; } = ""; public string Title { get; set; } = ""; public string Subtitle { get; set; } = ""; public string Href { get; set; } = ""; }
+    public class LocationDto { public string LocationId { get; set; } = ""; public string Unlocode { get; set; } = ""; public string Name { get; set; } = ""; public string Country { get; set; } = ""; public decimal Latitude { get; set; } public decimal Longitude { get; set; } public string LocationType { get; set; } = ""; }
+    public class ShipmentMapDto { public string ShipmentId { get; set; } = ""; public string? Origin { get; set; } public string? Destination { get; set; } public string? PortOfLoading { get; set; } public string? PortOfDischarge { get; set; } public string? Status { get; set; } public decimal? RiskScore { get; set; } public DateTime? PlannedEtd { get; set; } public DateTime? PlannedEta { get; set; } }
+    public class TradeDto { public string TradeId { get; set; } = ""; }
+    public class NetworkEventDto { public string EventId { get; set; } = ""; public string? EventType { get; set; } public string? Severity { get; set; } public string? Location { get; set; } public string? Description { get; set; } public DateTime? StartTime { get; set; } }
+    public class RiskDto { public string RiskId { get; set; } = ""; public string? Severity { get; set; } }
+    public class PredictionDto { public string PredictionId { get; set; } = ""; }
+    public class RecommendationDto { public string RecommendationId { get; set; } = ""; public string? TriggerEvent { get; set; } public string? RecommendationType { get; set; } public string? Action { get; set; } public string? Reason { get; set; } public decimal? EstimatedCost { get; set; } public string? Status { get; set; } }
+    public class ActionDto { public string ActionId { get; set; } = ""; public string? Status { get; set; } }
+    public class DocumentDto { public string DocumentId { get; set; } = ""; public string? DocumentType { get; set; } public string? Status { get; set; } }
+    public class FreightQuoteDto { public string QuoteId { get; set; } = ""; public decimal? BaseFreight { get; set; } public decimal? Baf { get; set; } public decimal? LocalCharges { get; set; } public decimal? CongestionSurcharge { get; set; } public decimal? OtherSurcharges { get; set; } public decimal? TotalCost { get; set; } }
+    public class PagedResponse<T> { public List<T>? Data { get; set; } public int TotalRecords { get; set; } public int TotalPages { get; set; } public int Page { get; set; } public int PageSize { get; set; } }
+    public class MapRoute { public MapRoute(string id,string o,string d,decimal olat,decimal olon,decimal dlat,decimal dlon,string cls,string status){ShipmentId=id;OriginName=o;DestinationName=d;OriginLatitude=olat;OriginLongitude=olon;DestinationLatitude=dlat;DestinationLongitude=dlon;StatusClass=cls;Status=status;} public string ShipmentId{get;} public string OriginName{get;} public string DestinationName{get;} public decimal OriginLatitude{get;} public decimal OriginLongitude{get;} public decimal DestinationLatitude{get;} public decimal DestinationLongitude{get;} public string StatusClass{get;} public string Status{get;} }
+    public record MapMarker(string Name, decimal Latitude, decimal Longitude, string StatusClass);
+    public record MilestoneItem(DateTime Date,string Title,string ShipmentId,string Route,string StatusLabel,string StatusClass);
+    public class SpendItem { public SpendItem(string label, decimal value, string cssClass){Label=label;Value=value;CssClass=cssClass;} public string Label{get;} public decimal Value{get;} public decimal Percent{get;set;} public string CssClass{get;} }
+}

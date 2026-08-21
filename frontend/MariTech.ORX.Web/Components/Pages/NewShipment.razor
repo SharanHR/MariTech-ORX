@@ -1,0 +1,717 @@
+@page "/shipments/new"
+@using System.Net.Http.Json
+@inject IHttpClientFactory HttpClientFactory
+@inject NavigationManager NavigationManager
+
+<PageTitle>New Shipment | MariTech ORX</PageTitle>
+
+<div class="new-shipment-page">
+    <div class="new-shipment-heading">
+        <div>
+            <div class="breadcrumb">Home / Shipments / New Shipment</div>
+            <h1>New Shipment</h1>
+            <p>Create an export shipment and capture the full operating workflow in ORX.</p>
+        </div>
+        <div class="step-meta">Step @(step + 1) of @Steps.Length · ~3 min to complete</div>
+    </div>
+
+    <div class="stepper">
+        @for (var i = 0; i < Steps.Length; i++)
+        {
+            var index = i;
+            <div class="stepper-item @(index == step ? "current" : index < step ? "complete" : "")">
+                <div class="stepper-circle">
+                    @(index < step ? "✓" : (index + 1).ToString())
+                </div>
+                <span>@Steps[index]</span>
+            </div>
+            @if (i < Steps.Length - 1)
+            {
+                <div class="stepper-line @(index < step ? "complete" : "")"></div>
+            }
+        }
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(errorMessage))
+    {
+        <div class="form-error">
+            <strong>Unable to create shipment</strong>
+            <span>@errorMessage</span>
+        </div>
+    }
+
+    @if (created)
+    {
+        <div class="success-panel">
+            <div class="success-icon">✓</div>
+            <h2>Shipment @createdShipmentId created successfully.</h2>
+            <p>The shipment has been persisted to the ORX database and is now available in the shipment workspace.</p>
+            <div class="success-actions">
+                <button class="primary-button" @onclick="OpenShipment">Open Shipment Workspace</button>
+                <button class="secondary-button" @onclick="GoToShipments">View All Shipments</button>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="wizard-card">
+            @if (step == 0)
+            {
+                <section class="wizard-section">
+                    <div class="section-topline">
+                        <div>
+                            <span class="section-eyebrow">01</span>
+                            <h2>Trade Details</h2>
+                        </div>
+                    </div>
+
+                    <div class="quick-start">
+                        <div class="quick-title">⚡ Quick Start — copy from a previous shipment</div>
+                        <div class="template-grid">
+                            @foreach (var template in Templates)
+                            {
+                                <button type="button" class="template-card @(appliedTemplate == template.Label ? "selected" : "")" @onclick="() => ApplyTemplate(template)">
+                                    <strong>@template.Label</strong>
+                                    <span>@template.Subtitle</span>
+                                </button>
+                            }
+                        </div>
+                        @if (!string.IsNullOrWhiteSpace(appliedTemplate))
+                        {
+                            <div class="template-confirm">✓ Fields below were filled from “@appliedTemplate”. Edit anything that changed.</div>
+                        }
+                    </div>
+
+                    <div class="form-grid two-columns">
+                        <div class="field">
+                            <label>Exporter</label>
+                            <input @bind="trade.Exporter" />
+                        </div>
+                        <div class="field">
+                            <label>Buyer / Importer <span>*</span></label>
+                            <input placeholder="e.g. Demo Buyer — Hamburg GmbH" @bind="trade.Buyer" />
+                        </div>
+                        <div class="field">
+                            <label>Origin <span>*</span></label>
+                            <input list="orx-locations" placeholder="e.g. Nhava Sheva" @bind="trade.Origin" />
+                        </div>
+                        <div class="field">
+                            <label>Destination <span>*</span></label>
+                            <input list="orx-locations" placeholder="e.g. Rotterdam" @bind="trade.Destination" />
+                        </div>
+                        <div class="field">
+                            <label>Product <span>*</span></label>
+                            <input placeholder="e.g. Cotton Yarn" @bind="trade.Product" />
+                        </div>
+                        <div class="field">
+                            <label>HS Code <span class="help" title="HS Code classifies your product for customs.">?</span></label>
+                            <input placeholder="e.g. 5205.11" @bind="trade.HsCode" @bind:event="oninput" />
+                            @if (HsSuggestion is not null && string.IsNullOrWhiteSpace(trade.HsCode))
+                            {
+                                <div class="suggestion">
+                                    <span>✦ ORX suggests <strong>@HsSuggestion.Code</strong> — @HsSuggestion.Label (@HsSuggestion.Confidence% match)</span>
+                                    <button type="button" @onclick="UseHsSuggestion">Use this</button>
+                                </div>
+                            }
+                        </div>
+                        <div class="field">
+                            <label>Quantity</label>
+                            <input placeholder="e.g. 500 units" @bind="trade.Quantity" />
+                        </div>
+                        <div class="field">
+                            <label>Shipment Value</label>
+                            <input placeholder="e.g. 1,860,000" @bind="trade.ShipmentValue" />
+                        </div>
+                        <div class="field">
+                            <label>Currency</label>
+                            <select @bind="trade.Currency">
+                                <option>INR</option>
+                                <option>USD</option>
+                                <option>EUR</option>
+                            </select>
+                        </div>
+                        <div class="field">
+                            <label>Incoterm <span class="help" title="Defines who pays for and is responsible for the goods at each stage.">?</span></label>
+                            <select @bind="trade.Incoterm">
+                                <option>FOB</option>
+                                <option>CIF</option>
+                                <option>EXW</option>
+                                <option>DDP</option>
+                                <option>FCA</option>
+                            </select>
+                        </div>
+                        <div class="field">
+                            <label>Required Delivery Date</label>
+                            <input type="date" @bind="trade.RequiredDeliveryDate" />
+                        </div>
+                    </div>
+
+                    <datalist id="orx-locations">
+                        @foreach (var location in locations)
+                        {
+                            <option value="@location.Name">@location.Unlocode · @location.Country</option>
+                        }
+                    </datalist>
+                </section>
+            }
+            else if (step == 1)
+            {
+                <section class="wizard-section">
+                    <div class="section-topline">
+                        <div>
+                            <span class="section-eyebrow">02</span>
+                            <h2>Cargo Details</h2>
+                        </div>
+                    </div>
+
+                    <div class="form-grid two-columns">
+                        <div class="field">
+                            <label>Shipment Mode</label>
+                            <select @bind="cargo.ShipmentMode">
+                                <option>Ocean FCL</option>
+                                <option>Ocean LCL</option>
+                                <option>Air Freight</option>
+                            </select>
+                        </div>
+                        <div class="field">
+                            <label>Container Type</label>
+                            <select @bind="cargo.ContainerType">
+                                <option>20' Standard</option>
+                                <option>40' Standard</option>
+                                <option>40' High Cube</option>
+                            </select>
+                        </div>
+                        <div class="field">
+                            <label>Number of Containers</label>
+                            <input type="number" min="1" @bind="cargo.NumberOfContainers" />
+                        </div>
+                        <div class="field">
+                            <label>Gross Weight (kg)</label>
+                            <input placeholder="e.g. 12,500" @bind="cargo.GrossWeight" />
+                        </div>
+                        <div class="field">
+                            <label>Volume (CBM) <span class="help" title="Cubic metres. Used for container sizing and LCL planning.">?</span></label>
+                            <input placeholder="e.g. 28" @bind="cargo.Volume" />
+                        </div>
+                    </div>
+
+                    <div class="subheading">Special Handling</div>
+                    <div class="form-grid two-columns">
+                        <div class="field">
+                            <label>Dangerous Goods</label>
+                            <select @bind="cargo.DangerousGoods">
+                                <option>No</option>
+                                <option>Yes</option>
+                            </select>
+                        </div>
+                        <div class="field checkbox-field">
+                            <label>Temperature Controlled</label>
+                            <div class="switch-row">
+                                <button type="button" class="toggle @(!cargo.TemperatureControlled ? "off" : "on")" @onclick="() => cargo.TemperatureControlled = !cargo.TemperatureControlled">
+                                    <span></span>
+                                </button>
+                                <span>@(cargo.TemperatureControlled ? "Yes" : "No")</span>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            }
+            else if (step == 2)
+            {
+                <section class="wizard-section">
+                    <div class="section-topline">
+                        <div>
+                            <span class="section-eyebrow">03</span>
+                            <h2>Which services do you need?</h2>
+                        </div>
+                        <button type="button" class="recommend-button" @onclick="LetOrxRecommend">✦ Let ORX Recommend</button>
+                    </div>
+
+                    <div class="service-grid">
+                        @foreach (var service in ServiceOptions)
+                        {
+                            var selected = services.Contains(service.Key);
+                            <button type="button" class="service-card @(selected ? "selected" : "")" @onclick="() => ToggleService(service.Key)">
+                                <span class="service-check">@(selected ? "✓" : "")</span>
+                                <span>@service.Label</span>
+                            </button>
+                        }
+                    </div>
+                    @if (services.Count > 0)
+                    {
+                        <div class="selection-note">@services.Count service@(services.Count == 1 ? "" : "s") selected.</div>
+                    }
+                </section>
+            }
+            else if (step == 3)
+            {
+                <section class="wizard-section">
+                    <div class="section-topline">
+                        <div>
+                            <span class="section-eyebrow">04</span>
+                            <h2>Documents — ORX Required Documentation Check</h2>
+                        </div>
+                    </div>
+
+                    <div class="document-list">
+                        @foreach (var document in documents)
+                        {
+                            <div class="document-row">
+                                <div>
+                                    <strong>@document.DocumentType</strong>
+                                    <small>@DocumentDescription(document.DocumentType)</small>
+                                </div>
+                                <select @bind="document.Status">
+                                    <option>Required</option>
+                                    <option>Pending</option>
+                                    <option>Uploaded</option>
+                                    <option>Generated after booking</option>
+                                    <option>Required if insurance selected</option>
+                                </select>
+                            </div>
+                        }
+                    </div>
+                    <p class="documents-note">File upload and document validation stay in the Documents workspace; this step persists the required document checklist with the new shipment.</p>
+                </section>
+            }
+            else
+            {
+                <section class="wizard-section">
+                    <div class="section-topline">
+                        <div>
+                            <span class="section-eyebrow">05</span>
+                            <h2>Review &amp; Create</h2>
+                        </div>
+                    </div>
+
+                    <div class="review-grid">
+                        <div class="review-block">
+                            <span>TRADE ROUTE</span>
+                            <strong>@(string.IsNullOrWhiteSpace(trade.Origin) ? "—" : trade.Origin) → @(string.IsNullOrWhiteSpace(trade.Destination) ? "—" : trade.Destination)</strong>
+                            <small>@(string.IsNullOrWhiteSpace(trade.Buyer) ? "Buyer not specified" : trade.Buyer) · @trade.Incoterm</small>
+                        </div>
+                        <div class="review-block">
+                            <span>CARGO</span>
+                            <strong>@cargo.ShipmentMode · @cargo.NumberOfContainers × @cargo.ContainerType</strong>
+                            <small>@(string.IsNullOrWhiteSpace(cargo.GrossWeight) ? "—" : cargo.GrossWeight) kg · @(string.IsNullOrWhiteSpace(cargo.Volume) ? "—" : cargo.Volume) CBM</small>
+                        </div>
+                        <div class="review-block">
+                            <span>PRODUCT</span>
+                            <strong>@(string.IsNullOrWhiteSpace(trade.Product) ? "—" : trade.Product)</strong>
+                            <small>HS @(string.IsNullOrWhiteSpace(trade.HsCode) ? "not specified" : trade.HsCode) · @(string.IsNullOrWhiteSpace(trade.Quantity) ? "Quantity not specified" : trade.Quantity)</small>
+                        </div>
+                        <div class="review-block">
+                            <span>VALUE</span>
+                            <strong>@(string.IsNullOrWhiteSpace(trade.ShipmentValue) ? "—" : trade.ShipmentValue) @trade.Currency</strong>
+                            <small>Required delivery: @(trade.RequiredDeliveryDate.HasValue ? trade.RequiredDeliveryDate.Value.ToString("dd MMM yyyy") : "Not specified")</small>
+                        </div>
+                        <div class="review-block wide">
+                            <span>SERVICES</span>
+                            @if (services.Count == 0)
+                            {
+                                <strong>No service selected yet</strong>
+                            }
+                            else
+                            {
+                                <div class="review-chips">
+                                    @foreach (var service in ServiceOptions.Where(x => services.Contains(x.Key)))
+                                    {
+                                        <span>@service.Label</span>
+                                    }
+                                </div>
+                            }
+                        </div>
+                        <div class="review-block wide">
+                            <span>DOCUMENTS</span>
+                            <div class="review-chips">
+                                @foreach (var document in documents)
+                                {
+                                    <span class="doc-chip">@document.DocumentType · @document.Status</span>
+                                }
+                            </div>
+                        </div>
+                        <div class="review-block">
+                            <span>ESTIMATED TIMELINE</span>
+                            <strong>ORX will calculate after service / booking confirmation</strong>
+                            <small>Required delivery: @(trade.RequiredDeliveryDate.HasValue ? trade.RequiredDeliveryDate.Value.ToString("dd MMM yyyy") : "Not specified")</small>
+                        </div>
+                        <div class="review-block">
+                            <span>ESTIMATED SERVICE COST</span>
+                            <strong>Quote after service selection</strong>
+                            <small>Use Freight Quotes to compare live / recorded service options.</small>
+                        </div>
+                    </div>
+                </section>
+            }
+
+            <div class="wizard-footer">
+                <button type="button" class="secondary-button" disabled="@(step == 0)" @onclick="Back">← Back</button>
+                @if (step < Steps.Length - 1)
+                {
+                    <button type="button" class="primary-button" disabled="@(!CanContinue())" @onclick="Next">Continue →</button>
+                }
+                else
+                {
+                    <button type="button" class="primary-button" disabled="@creating" @onclick="CreateShipment">
+                        @(creating ? "Creating..." : "Create Shipment")
+                    </button>
+                }
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private static readonly string[] Steps =
+    [
+        "Trade Details",
+        "Cargo Details",
+        "Required Services",
+        "Documents",
+        "Review & Create"
+    ];
+
+    private readonly List<ServiceOption> ServiceOptions =
+    [
+        new("pickup", "Pickup Transportation"),
+        new("freight", "Freight Forwarding"),
+        new("customs", "Customs Clearance"),
+        new("insurance", "Marine Insurance"),
+        new("warehousing", "Warehousing"),
+        new("delivery", "Destination Delivery"),
+        new("docs", "Documentation Support")
+    ];
+
+    private readonly List<ShipmentTemplate> Templates =
+    [
+        new(
+            "Cotton Yarn → Rotterdam",
+            "Demo Buyer — Rotterdam BV · last shipped 02 Aug",
+            new("Demo Exporter Pvt Ltd", "Demo Buyer — Rotterdam BV", "Mumbai", "Rotterdam", "Cotton Yarn, Not Carded", "5205.11", "500 units", "18,60,000", "INR", "FOB"),
+            new("Ocean FCL", "20' Standard", 1, "12,500", "28")
+        ),
+        new(
+            "Leather Goods → Hamburg",
+            "Demo Buyer — Hamburg GmbH · last shipped 05 Aug",
+            new("Demo Exporter Pvt Ltd", "Demo Buyer — Hamburg GmbH", "Chennai", "Hamburg", "Finished Leather Articles", "4107.11", "1,200 units", "24,10,000", "INR", "CIF"),
+            new("Ocean FCL", "40' Standard", 1, "9,800", "31")
+        ),
+        new(
+            "Spice Blends → Dubai",
+            "Demo Buyer — Dubai Trading LLC · last shipped 08 Aug",
+            new("Demo Exporter Pvt Ltd", "Demo Buyer — Dubai Trading LLC", "Mundra", "Dubai", "Mixed Spice Blends", "0910.99", "3,000 kg", "9,40,000", "INR", "FOB"),
+            new("Ocean LCL", "20' Standard", 1, "3,000", "6")
+        )
+    ];
+
+    private readonly List<DocumentRow> documents =
+    [
+        new("Commercial Invoice", "Required"),
+        new("Packing List", "Required"),
+        new("Certificate of Origin", "Required"),
+        new("Shipping Bill", "Pending"),
+        new("Bill of Lading", "Generated after booking")
+    ];
+
+    private readonly List<string> services = new();
+    private readonly List<LocationOption> locations = new();
+    private readonly TradeForm trade = new();
+    private readonly CargoForm cargo = new();
+
+    private int step;
+    private bool creating;
+    private bool created;
+    private string? createdShipmentId;
+    private string? appliedTemplate;
+    private string? errorMessage;
+
+    private HsHint? HsSuggestion
+    {
+        get
+        {
+            if (string.IsNullOrWhiteSpace(trade.Product) || !string.IsNullOrWhiteSpace(trade.HsCode))
+                return null;
+
+            var q = trade.Product.Trim().ToLowerInvariant();
+            return HsHints.FirstOrDefault(x => x.Keywords.Any(k => q.Contains(k)));
+        }
+    }
+
+    private static readonly List<HsHint> HsHints =
+    [
+        new(new[] { "cotton", "yarn" }, "5205.11", "Cotton Yarn, Not Carded", 92),
+        new(new[] { "leather" }, "4107.11", "Finished Leather Articles", 89),
+        new(new[] { "spice", "spices" }, "0910.99", "Mixed Spices, Other", 87),
+        new(new[] { "tea" }, "0902.30", "Black Tea, Packaged ≤ 3kg", 90),
+        new(new[] { "textile", "fabric" }, "5208.11", "Cotton Fabric, Plain Weave", 85),
+        new(new[] { "rice", "basmati" }, "1006.30", "Semi/Wholly Milled Rice", 91),
+        new(new[] { "handicraft", "handicrafts" }, "4420.10", "Wood Handicrafts & Statuettes", 78),
+        new(new[] { "pharma", "medicine", "drug" }, "3004.90", "Medicaments, Packaged for Retail", 82)
+    ];
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var client = HttpClientFactory.CreateClient("ORXApi");
+            var result = await client.GetFromJsonAsync<List<LocationOption>>("locations");
+            locations.Clear();
+            if (result is not null)
+                locations.AddRange(result);
+        }
+        catch
+        {
+            // Location suggestions are optional; free-text origin/destination still work.
+        }
+    }
+
+    private bool CanContinue()
+    {
+        return step switch
+        {
+            0 => !string.IsNullOrWhiteSpace(trade.Buyer)
+                 && !string.IsNullOrWhiteSpace(trade.Origin)
+                 && !string.IsNullOrWhiteSpace(trade.Destination)
+                 && !string.IsNullOrWhiteSpace(trade.Product),
+            1 => cargo.NumberOfContainers >= 1
+                 && !string.IsNullOrWhiteSpace(cargo.ShipmentMode)
+                 && !string.IsNullOrWhiteSpace(cargo.ContainerType),
+            _ => true
+        };
+    }
+
+    private void Next()
+    {
+        errorMessage = null;
+        if (CanContinue())
+            step = Math.Min(step + 1, Steps.Length - 1);
+    }
+
+    private void Back()
+    {
+        errorMessage = null;
+        step = Math.Max(step - 1, 0);
+    }
+
+    private void ToggleService(string key)
+    {
+        if (services.Contains(key))
+            services.Remove(key);
+        else
+            services.Add(key);
+
+        SyncInsuranceDocument();
+    }
+
+    private void LetOrxRecommend()
+    {
+        services.Clear();
+        services.AddRange(["freight", "customs", "insurance", "docs"]);
+        SyncInsuranceDocument();
+    }
+
+    private void SyncInsuranceDocument()
+    {
+        var insuranceIndex = documents.FindIndex(x => x.DocumentType == "Insurance Certificate");
+        var insuranceSelected = services.Contains("insurance");
+        if (insuranceSelected && insuranceIndex < 0)
+        {
+            documents.Add(new DocumentRow("Insurance Certificate", "Required if insurance selected"));
+        }
+        else if (!insuranceSelected && insuranceIndex >= 0)
+        {
+            documents.RemoveAt(insuranceIndex);
+        }
+    }
+
+    private void ApplyTemplate(ShipmentTemplate template)
+    {
+        trade.Exporter = template.Trade.Exporter;
+        trade.Buyer = template.Trade.Buyer;
+        trade.Origin = template.Trade.Origin;
+        trade.Destination = template.Trade.Destination;
+        trade.Product = template.Trade.Product;
+        trade.HsCode = template.Trade.HsCode;
+        trade.Quantity = template.Trade.Quantity;
+        trade.ShipmentValue = template.Trade.ShipmentValue;
+        trade.Currency = template.Trade.Currency;
+        trade.Incoterm = template.Trade.Incoterm;
+
+        cargo.ShipmentMode = template.Cargo.ShipmentMode;
+        cargo.ContainerType = template.Cargo.ContainerType;
+        cargo.NumberOfContainers = template.Cargo.NumberOfContainers;
+        cargo.GrossWeight = template.Cargo.GrossWeight;
+        cargo.Volume = template.Cargo.Volume;
+
+        appliedTemplate = template.Label;
+    }
+
+    private void UseHsSuggestion()
+    {
+        if (HsSuggestion is not null)
+            trade.HsCode = HsSuggestion.Code;
+    }
+
+    private async Task CreateShipment()
+    {
+        if (!CanContinue() || creating)
+            return;
+
+        creating = true;
+        errorMessage = null;
+
+        try
+        {
+            var client = HttpClientFactory.CreateClient("ORXApi");
+            var request = new CreateShipmentRequest
+            {
+                Exporter = trade.Exporter,
+                Buyer = trade.Buyer,
+                Origin = trade.Origin,
+                Destination = trade.Destination,
+                Product = trade.Product,
+                HsCode = trade.HsCode,
+                Quantity = trade.Quantity,
+                ShipmentValue = trade.ShipmentValue,
+                Currency = trade.Currency,
+                Incoterm = trade.Incoterm,
+                RequiredDeliveryDate = trade.RequiredDeliveryDate.HasValue
+                    ? DateOnly.FromDateTime(trade.RequiredDeliveryDate.Value)
+                    : null,
+                ShipmentMode = cargo.ShipmentMode,
+                ContainerType = cargo.ContainerType,
+                NumberOfContainers = cargo.NumberOfContainers,
+                GrossWeight = cargo.GrossWeight,
+                Volume = cargo.Volume,
+                DangerousGoods = cargo.DangerousGoods,
+                TemperatureControlled = cargo.TemperatureControlled,
+                Services = services.ToList(),
+                Documents = documents.Select(x => new ShipmentDocumentRequest
+                {
+                    DocumentType = x.DocumentType,
+                    Status = x.Status
+                }).ToList()
+            };
+
+            var response = await client.PostAsJsonAsync("shipments", request);
+            if (!response.IsSuccessStatusCode)
+            {
+                var message = await response.Content.ReadAsStringAsync();
+                errorMessage = string.IsNullOrWhiteSpace(message)
+                    ? "The API rejected the shipment request."
+                    : message;
+                return;
+            }
+
+            var result = await response.Content.ReadFromJsonAsync<CreateShipmentResponse>();
+            createdShipmentId = result?.ShipmentId;
+            created = true;
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+        finally
+        {
+            creating = false;
+        }
+    }
+
+    private void OpenShipment()
+    {
+        if (!string.IsNullOrWhiteSpace(createdShipmentId))
+            NavigationManager.NavigateTo($"/shipments/{createdShipmentId}");
+    }
+
+    private void GoToShipments() => NavigationManager.NavigateTo("/shipments");
+
+    private static string DocumentDescription(string type) => type switch
+    {
+        "Commercial Invoice" => "Required for trade value and customs declaration.",
+        "Packing List" => "Describes packages, quantities and packing details.",
+        "Certificate of Origin" => "Supports origin verification and preferential treatment.",
+        "Shipping Bill" => "Export customs filing for the shipment.",
+        "Bill of Lading" => "Generated after carrier booking / vessel confirmation.",
+        "Insurance Certificate" => "Required when marine insurance is selected.",
+        _ => "ORX document workflow item."
+    };
+
+    private sealed class TradeForm
+    {
+        public string Exporter { get; set; } = "Demo Exporter Pvt Ltd";
+        public string Buyer { get; set; } = "";
+        public string Origin { get; set; } = "";
+        public string Destination { get; set; } = "";
+        public string Product { get; set; } = "";
+        public string HsCode { get; set; } = "";
+        public string Quantity { get; set; } = "";
+        public string ShipmentValue { get; set; } = "";
+        public string Currency { get; set; } = "INR";
+        public string Incoterm { get; set; } = "FOB";
+        public DateTime? RequiredDeliveryDate { get; set; }
+    }
+
+    private sealed class CargoForm
+    {
+        public string ShipmentMode { get; set; } = "Ocean FCL";
+        public string ContainerType { get; set; } = "20' Standard";
+        public int NumberOfContainers { get; set; } = 1;
+        public string GrossWeight { get; set; } = "";
+        public string Volume { get; set; } = "";
+        public string DangerousGoods { get; set; } = "No";
+        public bool TemperatureControlled { get; set; }
+    }
+
+    private sealed record ServiceOption(string Key, string Label);
+    private sealed class DocumentRow
+    {
+        public DocumentRow(string documentType, string status)
+        {
+            DocumentType = documentType;
+            Status = status;
+        }
+
+        public string DocumentType { get; set; }
+        public string Status { get; set; }
+    }
+    private sealed record LocationOption(string LocationId, string Unlocode, string Name, string Country, decimal Latitude, decimal Longitude, string LocationType);
+    private sealed record HsHint(string[] Keywords, string Code, string Label, int Confidence);
+    private sealed record ShipmentTemplate(string Label, string Subtitle, TradeTemplate Trade, CargoTemplate Cargo);
+    private sealed record TradeTemplate(string Exporter, string Buyer, string Origin, string Destination, string Product, string HsCode, string Quantity, string ShipmentValue, string Currency, string Incoterm);
+    private sealed record CargoTemplate(string ShipmentMode, string ContainerType, int NumberOfContainers, string GrossWeight, string Volume);
+
+    private sealed class CreateShipmentRequest
+    {
+        public string Exporter { get; set; } = "";
+        public string Buyer { get; set; } = "";
+        public string Origin { get; set; } = "";
+        public string Destination { get; set; } = "";
+        public string Product { get; set; } = "";
+        public string HsCode { get; set; } = "";
+        public string Quantity { get; set; } = "";
+        public string ShipmentValue { get; set; } = "";
+        public string Currency { get; set; } = "INR";
+        public string Incoterm { get; set; } = "FOB";
+        public DateOnly? RequiredDeliveryDate { get; set; }
+        public string ShipmentMode { get; set; } = "Ocean FCL";
+        public string ContainerType { get; set; } = "20' Standard";
+        public int NumberOfContainers { get; set; } = 1;
+        public string GrossWeight { get; set; } = "";
+        public string Volume { get; set; } = "";
+        public string DangerousGoods { get; set; } = "No";
+        public bool TemperatureControlled { get; set; }
+        public List<string> Services { get; set; } = new();
+        public List<ShipmentDocumentRequest> Documents { get; set; } = new();
+    }
+
+    private sealed class ShipmentDocumentRequest
+    {
+        public string DocumentType { get; set; } = "";
+        public string Status { get; set; } = "Required";
+    }
+
+    private sealed class CreateShipmentResponse
+    {
+        public string ShipmentId { get; set; } = "";
+    }
+}

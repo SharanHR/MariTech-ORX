@@ -1,0 +1,65 @@
+@inherits LayoutComponentBase
+
+<div class="orx-app @(sidebarOpen ? "sidebar-open" : "sidebar-closed")">
+    @if (sidebarOpen)
+    {
+        <button class="sidebar-backdrop" type="button" aria-label="Close navigation" @onclick="ToggleSidebar"></button>
+    }
+
+    <aside class="orx-sidebar">
+        <div class="orx-brand">
+            <div class="orx-logo">M</div>
+            <div>
+                <div class="orx-brand-name">MariTech ORX</div>
+                <div class="orx-brand-product">TRADE INTELLIGENCE</div>
+            </div>
+        </div>
+
+        <nav class="orx-navigation">
+            <div class="nav-section-title">OVERVIEW</div>
+            <NavLink href="/" Match="NavLinkMatch.All"><span>▦</span>Dashboard</NavLink>
+            <div class="nav-section-title">OPERATIONS</div>
+            <NavLink href="/orders"><span>◫</span>Trade Orders</NavLink>
+            <NavLink href="/shipments"><span>□</span>Shipments</NavLink>
+            <NavLink href="/freight-quotes"><span>◇</span>Freight Quotes</NavLink>
+            <NavLink href="/documents"><span>▤</span>Documents</NavLink>
+            <div class="nav-section-title">INTELLIGENCE</div>
+            <NavLink href="/network-intelligence"><span>◉</span>Network Intelligence</NavLink>
+            <NavLink href="/risk-assessments"><span>△</span>Risk Assessments</NavLink>
+            <NavLink href="/predictions"><span>◈</span>Predictions</NavLink>
+            <NavLink href="/recommendations"><span>✓</span>Recommendations</NavLink>
+            <NavLink href="/actions"><span>→</span>Actions</NavLink>
+            <div class="nav-section-title">AI</div>
+            <NavLink href="/ai-insights"><span>✦</span>AI Insights</NavLink>
+            <NavLink href="/ask-orx" class="ask-orx-link"><span>✧</span>Ask ORX</NavLink>
+        </nav>
+
+        <div class="orx-sidebar-footer"><div class="system-status"><span class="status-dot"></span>ORX System Online</div></div>
+    </aside>
+
+    <main class="orx-main">
+        <header class="orx-header">
+            <div class="header-left">
+                <button class="menu-button" type="button" aria-label="Open navigation" @onclick="ToggleSidebar">
+                    <span></span><span></span><span></span>
+                </button>
+                <div class="header-title"><span class="header-product">MariTech ORX</span><span class="header-divider">/</span><span>Orchestrating the Maritime Ecosystem</span></div>
+            </div>
+            <div class="header-actions">
+                <button class="header-button" type="button" aria-label="Theme">◔</button>
+                <button class="header-button" type="button" aria-label="Notifications">♧</button>
+                <div class="user-profile">
+                    <div class="user-avatar">S</div>
+                    <div class="user-info"><div class="user-name">ORX User</div><div class="user-role">Administrator</div></div>
+                    <span class="profile-chevron">⌄</span>
+                </div>
+            </div>
+        </header>
+        <section class="orx-content">@Body</section>
+    </main>
+</div>
+
+@code {
+    private bool sidebarOpen;
+    private void ToggleSidebar() => sidebarOpen = !sidebarOpen;
+}

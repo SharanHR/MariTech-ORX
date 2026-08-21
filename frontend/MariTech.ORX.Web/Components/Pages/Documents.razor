@@ -1,0 +1,360 @@
+@page "/documents"
+@using System.Net.Http.Json
+@inject IHttpClientFactory HttpClientFactory
+
+<PageTitle>Documents | MariTech ORX</PageTitle>
+
+<div class="documents-page">
+
+    <div class="page-header">
+        <div>
+            <h1>Documents</h1>
+            <p>Monitor trade and shipment documentation.</p>
+        </div>
+
+        <div class="live-status">
+            <span></span>
+            Live Database
+        </div>
+    </div>
+
+    <div class="filters-card">
+
+        <input @bind="search"
+               @bind:event="oninput"
+               placeholder="Search document, trade, shipment..." />
+
+        <input @bind="documentType"
+               @bind:event="oninput"
+               placeholder="Document type" />
+
+        <input @bind="status"
+               @bind:event="oninput"
+               placeholder="Status" />
+
+        <input @bind="issuer"
+               @bind:event="oninput"
+               placeholder="Issuer" />
+
+        <button class="apply-button"
+                @onclick="ApplyFilters">
+            Apply
+        </button>
+
+        <button class="reset-button"
+                @onclick="ResetFilters">
+            Reset
+        </button>
+
+    </div>
+
+    @if (loading)
+    {
+        <div class="state-card">
+            Loading documents...
+        </div>
+    }
+    else if (error)
+    {
+        <div class="error-card">
+            <h3>Unable to load documents</h3>
+            <p>Check that the ORX API is running.</p>
+
+            <button @onclick="LoadDocuments">
+                Retry
+            </button>
+        </div>
+    }
+    else
+    {
+        <div class="summary-row">
+
+            <div class="summary-card">
+                <span>Total Documents</span>
+                <strong>@totalRecords</strong>
+            </div>
+
+            <div class="summary-card">
+                <span>Current Page</span>
+                <strong>@currentPage</strong>
+            </div>
+
+            <div class="summary-card">
+                <span>Total Pages</span>
+                <strong>@totalPages</strong>
+            </div>
+
+        </div>
+
+        <div class="table-card">
+
+            <div class="table-header">
+
+                <div>
+                    <h2>Document Registry</h2>
+                    <p>Real records from SQL Server</p>
+                </div>
+
+                <button class="refresh-button"
+                        @onclick="LoadDocuments">
+                    ↻ Refresh
+                </button>
+
+            </div>
+
+            @if (documents.Count == 0)
+            {
+                <div class="empty-state">
+                    No documents found.
+                </div>
+            }
+            else
+            {
+                <div class="table-wrapper">
+
+                    <table>
+
+                        <thead>
+                            <tr>
+                                <th>Document ID</th>
+                                <th>Trade ID</th>
+                                <th>Shipment ID</th>
+                                <th>Document Type</th>
+                                <th>Document Number</th>
+                                <th>Issuer</th>
+                                <th>Issue Date</th>
+                                <th>Status</th>
+                                <th>Version</th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+
+                            @foreach (var document in documents)
+                            {
+                                <tr>
+
+                                    <td class="document-id">
+                                        @document.DocumentId
+                                    </td>
+
+                                    <td>
+                                        @document.TradeId
+                                    </td>
+
+                                    <td>
+                                        @document.ShipmentId
+                                    </td>
+
+                                    <td>
+                                        @(document.DocumentType ?? "—")
+                                    </td>
+
+                                    <td>
+                                        @(document.DocumentNumber ?? "—")
+                                    </td>
+
+                                    <td>
+                                        @(document.Issuer ?? "—")
+                                    </td>
+
+                                    <td>
+                                        @(document.IssueDate?.ToString("dd MMM yyyy") ?? "—")
+                                    </td>
+
+                                    <td>
+                                        <span class="@GetStatusClass(document.Status)">
+                                            @(document.Status ?? "Unknown")
+                                        </span>
+                                    </td>
+
+                                    <td>
+                                        @(document.Version?.ToString() ?? "—")
+                                    </td>
+
+                                </tr>
+                            }
+
+                        </tbody>
+
+                    </table>
+
+                </div>
+
+                <div class="pagination">
+
+                    <button disabled="@(currentPage <= 1)"
+                            @onclick="PreviousPage">
+                        ← Previous
+                    </button>
+
+                    <span>
+                        Page <strong>@currentPage</strong>
+                        of <strong>@totalPages</strong>
+                    </span>
+
+                    <button disabled="@(currentPage >= totalPages)"
+                            @onclick="NextPage">
+                        Next →
+                    </button>
+
+                </div>
+            }
+
+        </div>
+    }
+
+</div>
+
+@code {
+
+    private List<DocumentDto> documents = new();
+
+    private int currentPage = 1;
+    private int pageSize = 20;
+
+    private int totalRecords;
+    private int totalPages;
+
+    private bool loading = true;
+    private bool error;
+
+    private string search = "";
+    private string documentType = "";
+    private string status = "";
+    private string issuer = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDocuments();
+    }
+
+    private async Task LoadDocuments()
+    {
+        loading = true;
+        error = false;
+
+        try
+        {
+            var client =
+                HttpClientFactory.CreateClient("ORXApi");
+
+            var url =
+                $"documents?page={currentPage}" +
+                $"&pageSize={pageSize}" +
+                $"&search={Uri.EscapeDataString(search)}" +
+                $"&documentType={Uri.EscapeDataString(documentType)}" +
+                $"&status={Uri.EscapeDataString(status)}" +
+                $"&issuer={Uri.EscapeDataString(issuer)}";
+
+            var response =
+                await client.GetFromJsonAsync<PagedResponse<DocumentDto>>(url);
+
+            if (response != null)
+            {
+                documents =
+                    response.Data ?? new List<DocumentDto>();
+
+                totalRecords = response.TotalRecords;
+                totalPages = response.TotalPages;
+            }
+        }
+        catch
+        {
+            error = true;
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private async Task ApplyFilters()
+    {
+        currentPage = 1;
+
+        await LoadDocuments();
+    }
+
+    private async Task ResetFilters()
+    {
+        search = "";
+        documentType = "";
+        status = "";
+        issuer = "";
+
+        currentPage = 1;
+
+        await LoadDocuments();
+    }
+
+    private async Task PreviousPage()
+    {
+        if (currentPage > 1)
+        {
+            currentPage--;
+
+            await LoadDocuments();
+        }
+    }
+
+    private async Task NextPage()
+    {
+        if (currentPage < totalPages)
+        {
+            currentPage++;
+
+            await LoadDocuments();
+        }
+    }
+
+    private string GetStatusClass(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return "status unknown";
+
+        return value.ToLowerInvariant() switch
+        {
+            "approved" => "status approved",
+            "valid" => "status approved",
+            "pending" => "status pending",
+            "rejected" => "status rejected",
+            "expired" => "status expired",
+            _ => "status unknown"
+        };
+    }
+
+    public class PagedResponse<T>
+    {
+        public List<T>? Data { get; set; }
+
+        public int Page { get; set; }
+
+        public int PageSize { get; set; }
+
+        public int TotalRecords { get; set; }
+
+        public int TotalPages { get; set; }
+    }
+
+    public class DocumentDto
+    {
+        public string DocumentId { get; set; } = "";
+
+        public string TradeId { get; set; } = "";
+
+        public string ShipmentId { get; set; } = "";
+
+        public string? DocumentType { get; set; }
+
+        public string? DocumentNumber { get; set; }
+
+        public string? Issuer { get; set; }
+
+        public DateOnly? IssueDate { get; set; }
+
+        public string? Status { get; set; }
+
+        public int? Version { get; set; }
+    }
+}

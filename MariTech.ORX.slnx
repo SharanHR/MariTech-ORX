@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/backend/">
+    <Project Path="backend/MariTech.ORX.Api/MariTech.ORX.Api.csproj" />
+    <Project Path="backend/MariTech.ORX.Application/MariTech.ORX.Application.csproj" />
+    <Project Path="backend/MariTech.ORX.Domain/MariTech.ORX.Domain.csproj" />
+    <Project Path="backend/MariTech.ORX.Infrastructure/MariTech.ORX.Infrastructure.csproj" />
+    <Project Path="backend/MariTech.ORX.Worker/MariTech.ORX.Worker.csproj" />
+  </Folder>
+  <Folder Name="/frontend/">
+    <Project Path="frontend/MariTech.ORX.Web/MariTech.ORX.Web.csproj" />
+  </Folder>
+</Solution>

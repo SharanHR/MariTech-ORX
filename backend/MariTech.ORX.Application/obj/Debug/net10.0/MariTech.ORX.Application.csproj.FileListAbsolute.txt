@@ -1,0 +1,15 @@
+C:\Users\shara\Downloads\MariTech_ORX_dashboard_reference_v2_fixed\MariTech_ORX\backend\MariTech.ORX.Application\bin\Debug\net10.0\MariTech.ORX.Application.deps.json
+C:\Users\shara\Downloads\MariTech_ORX_dashboard_reference_v2_fixed\MariTech_ORX\backend\MariTech.ORX.Application\bin\Debug\net10.0\MariTech.ORX.Application.dll
+C:\Users\shara\Downloads\MariTech_ORX_dashboard_reference_v2_fixed\MariTech_ORX\backend\MariTech.ORX.Application\bin\Debug\net10.0\MariTech.ORX.Application.pdb
+C:\Users\shara\Downloads\MariTech_ORX_dashboard_reference_v2_fixed\MariTech_ORX\backend\MariTech.ORX.Application\bin\Debug\net10.0\MariTech.ORX.Domain.dll
+C:\Users\shara\Downloads\MariTech_ORX_dashboard_reference_v2_fixed\MariTech_ORX\backend\MariTech.ORX.Application\bin\Debug\net10.0\MariTech.ORX.Domain.pdb
+C:\Users\shara\Downloads\MariTech_ORX_dashboard_reference_v2_fixed\MariTech_ORX\backend\MariTech.ORX.Application\obj\Debug\net10.0\MariTech.ORX.Application.csproj.AssemblyReference.cache
+C:\Users\shara\Downloads\MariTech_ORX_dashboard_reference_v2_fixed\MariTech_ORX\backend\MariTech.ORX.Application\obj\Debug\net10.0\MariTech.ORX.Application.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\shara\Downloads\MariTech_ORX_dashboard_reference_v2_fixed\MariTech_ORX\backend\MariTech.ORX.Application\obj\Debug\net10.0\MariTech.ORX.Application.AssemblyInfoInputs.cache
+C:\Users\shara\Downloads\MariTech_ORX_dashboard_reference_v2_fixed\MariTech_ORX\backend\MariTech.ORX.Application\obj\Debug\net10.0\MariTech.ORX.Application.AssemblyInfo.cs
+C:\Users\shara\Downloads\MariTech_ORX_dashboard_reference_v2_fixed\MariTech_ORX\backend\MariTech.ORX.Application\obj\Debug\net10.0\MariTech.ORX.Application.csproj.CoreCompileInputs.cache
+C:\Users\shara\Downloads\MariTech_ORX_dashboard_reference_v2_fixed\MariTech_ORX\backend\MariTech.ORX.Application\obj\Debug\net10.0\MariTech.342DEEEA.Up2Date
+C:\Users\shara\Downloads\MariTech_ORX_dashboard_reference_v2_fixed\MariTech_ORX\backend\MariTech.ORX.Application\obj\Debug\net10.0\MariTech.ORX.Application.dll
+C:\Users\shara\Downloads\MariTech_ORX_dashboard_reference_v2_fixed\MariTech_ORX\backend\MariTech.ORX.Application\obj\Debug\net10.0\refint\MariTech.ORX.Application.dll
+C:\Users\shara\Downloads\MariTech_ORX_dashboard_reference_v2_fixed\MariTech_ORX\backend\MariTech.ORX.Application\obj\Debug\net10.0\MariTech.ORX.Application.pdb
+C:\Users\shara\Downloads\MariTech_ORX_dashboard_reference_v2_fixed\MariTech_ORX\backend\MariTech.ORX.Application\obj\Debug\net10.0\ref\MariTech.ORX.Application.dll

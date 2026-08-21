@@ -1,0 +1,11 @@
+C:\Users\shara\Downloads\MariTech_ORX_dashboard_reference_v2_fixed\MariTech_ORX\backend\MariTech.ORX.Domain\bin\Debug\net10.0\MariTech.ORX.Domain.deps.json
+C:\Users\shara\Downloads\MariTech_ORX_dashboard_reference_v2_fixed\MariTech_ORX\backend\MariTech.ORX.Domain\bin\Debug\net10.0\MariTech.ORX.Domain.dll
+C:\Users\shara\Downloads\MariTech_ORX_dashboard_reference_v2_fixed\MariTech_ORX\backend\MariTech.ORX.Domain\bin\Debug\net10.0\MariTech.ORX.Domain.pdb
+C:\Users\shara\Downloads\MariTech_ORX_dashboard_reference_v2_fixed\MariTech_ORX\backend\MariTech.ORX.Domain\obj\Debug\net10.0\MariTech.ORX.Domain.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\shara\Downloads\MariTech_ORX_dashboard_reference_v2_fixed\MariTech_ORX\backend\MariTech.ORX.Domain\obj\Debug\net10.0\MariTech.ORX.Domain.AssemblyInfoInputs.cache
+C:\Users\shara\Downloads\MariTech_ORX_dashboard_reference_v2_fixed\MariTech_ORX\backend\MariTech.ORX.Domain\obj\Debug\net10.0\MariTech.ORX.Domain.AssemblyInfo.cs
+C:\Users\shara\Downloads\MariTech_ORX_dashboard_reference_v2_fixed\MariTech_ORX\backend\MariTech.ORX.Domain\obj\Debug\net10.0\MariTech.ORX.Domain.csproj.CoreCompileInputs.cache
+C:\Users\shara\Downloads\MariTech_ORX_dashboard_reference_v2_fixed\MariTech_ORX\backend\MariTech.ORX.Domain\obj\Debug\net10.0\MariTech.ORX.Domain.dll
+C:\Users\shara\Downloads\MariTech_ORX_dashboard_reference_v2_fixed\MariTech_ORX\backend\MariTech.ORX.Domain\obj\Debug\net10.0\refint\MariTech.ORX.Domain.dll
+C:\Users\shara\Downloads\MariTech_ORX_dashboard_reference_v2_fixed\MariTech_ORX\backend\MariTech.ORX.Domain\obj\Debug\net10.0\MariTech.ORX.Domain.pdb
+C:\Users\shara\Downloads\MariTech_ORX_dashboard_reference_v2_fixed\MariTech_ORX\backend\MariTech.ORX.Domain\obj\Debug\net10.0\ref\MariTech.ORX.Domain.dll

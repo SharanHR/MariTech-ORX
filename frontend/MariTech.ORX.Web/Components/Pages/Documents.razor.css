@@ -1,0 +1,281 @@
+.documents-page {
+    max-width: 1600px;
+    margin: 0 auto;
+}
+
+.page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+}
+
+.page-header h1 {
+    margin: 0;
+    font-size: 28px;
+    color: #061B3A;
+}
+
+.page-header p {
+    margin: 6px 0 0;
+    color: #667085;
+}
+
+.live-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 14px;
+    border-radius: 20px;
+    background: #ecfdf3;
+    color: #027a48;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.live-status span {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #12b76a;
+}
+
+.filters-card {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    background: white;
+    border: 1px solid #eaecf0;
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 20px;
+}
+
+.filters-card input {
+    height: 40px;
+    min-width: 170px;
+    border: 1px solid #d0d5dd;
+    border-radius: 7px;
+    padding: 0 12px;
+    font-size: 13px;
+}
+
+.filters-card input:first-child {
+    flex: 1;
+    min-width: 280px;
+}
+
+.apply-button,
+.reset-button {
+    height: 40px;
+    padding: 0 16px;
+    border-radius: 7px;
+    cursor: pointer;
+}
+
+.apply-button {
+    border: 0;
+    background: #0B2A5B;
+    color: white;
+}
+
+.reset-button {
+    border: 1px solid #d0d5dd;
+    background: white;
+}
+
+.summary-row {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 20px;
+}
+
+.summary-card {
+    background: white;
+    border: 1px solid #eaecf0;
+    border-radius: 10px;
+    padding: 16px 20px;
+    min-width: 160px;
+}
+
+.summary-card span {
+    display: block;
+    color: #667085;
+    font-size: 12px;
+    margin-bottom: 5px;
+}
+
+.summary-card strong {
+    font-size: 22px;
+    color: #061B3A;
+}
+
+.table-card {
+    background: white;
+    border: 1px solid #eaecf0;
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.table-header {
+    padding: 20px 22px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #eaecf0;
+}
+
+.table-header h2 {
+    margin: 0;
+    font-size: 17px;
+}
+
+.table-header p {
+    margin: 5px 0 0;
+    color: #667085;
+    font-size: 12px;
+}
+
+.refresh-button {
+    border: 1px solid #d0d5dd;
+    background: white;
+    padding: 8px 14px;
+    border-radius: 7px;
+    cursor: pointer;
+}
+
+.table-wrapper {
+    overflow-x: auto;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+th {
+    text-align: left;
+    padding: 13px 16px;
+    background: #f9fafb;
+    color: #667085;
+    font-size: 11px;
+    font-weight: 700;
+    white-space: nowrap;
+    border-bottom: 1px solid #eaecf0;
+}
+
+td {
+    padding: 15px 16px;
+    border-bottom: 1px solid #f2f4f7;
+    font-size: 13px;
+    color: #344054;
+    white-space: nowrap;
+}
+
+tbody tr:hover {
+    background: #f9fafb;
+}
+
+.document-id {
+    font-weight: 700;
+    color: #0B2A5B;
+}
+
+.status {
+    display: inline-block;
+    padding: 4px 9px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.status.approved {
+    background: #ecfdf3;
+    color: #027a48;
+}
+
+.status.pending {
+    background: #fffaeb;
+    color: #b54708;
+}
+
+.status.rejected {
+    background: #fef3f2;
+    color: #b42318;
+}
+
+.status.expired {
+    background: #f2f4f7;
+    color: #475467;
+}
+
+.status.unknown {
+    background: #f2f4f7;
+    color: #667085;
+}
+
+.pagination {
+    padding: 16px 20px;
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 16px;
+}
+
+.pagination button {
+    border: 1px solid #d0d5dd;
+    background: white;
+    padding: 8px 13px;
+    border-radius: 7px;
+    cursor: pointer;
+}
+
+.pagination button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.pagination span {
+    color: #667085;
+    font-size: 13px;
+}
+
+.state-card,
+.error-card,
+.empty-state {
+    background: white;
+    border: 1px solid #eaecf0;
+    border-radius: 12px;
+    padding: 40px;
+    text-align: center;
+}
+
+.error-card {
+    background: #fef3f2;
+    color: #b42318;
+}
+
+.error-card button {
+    border: 0;
+    background: #d92d20;
+    color: white;
+    padding: 8px 14px;
+    border-radius: 7px;
+    cursor: pointer;
+}
+
+@media (max-width: 700px) {
+    .page-header {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 14px;
+    }
+
+    .summary-row {
+        flex-wrap: wrap;
+    }
+
+    .summary-card {
+        flex: 1;
+    }
+}

@@ -1,0 +1,377 @@
+@page "/orders"
+@using System.Net.Http.Json
+@inject IHttpClientFactory HttpClientFactory
+
+<PageTitle>Trade Orders | MariTech ORX</PageTitle>
+
+<div class="trade-orders-page">
+
+    <div class="page-header">
+        <div>
+            <h1>Trade Orders</h1>
+            <p>Monitor and analyze live trade orders.</p>
+        </div>
+
+        <div class="live-status">
+            <span></span>
+            Live Database
+        </div>
+    </div>
+
+    <div class="filters-card">
+
+        <div class="search-box">
+            <input @bind="search"
+                   @bind:event="oninput"
+                   placeholder="Search trade, buyer, seller, commodity..." />
+        </div>
+
+        <select @bind="status">
+            <option value="">All Statuses</option>
+            <option value="Pending">Pending</option>
+            <option value="In Transit">In Transit</option>
+            <option value="Delivered">Delivered</option>
+            <option value="Cancelled">Cancelled</option>
+        </select>
+
+        <select @bind="tradeType">
+            <option value="">All Trade Types</option>
+            <option value="Import">Import</option>
+            <option value="Export">Export</option>
+            <option value="Domestic">Domestic</option>
+        </select>
+
+        <button class="apply-button"
+                @onclick="ApplyFilters">
+            Apply
+        </button>
+
+        <button class="reset-button"
+                @onclick="ResetFilters">
+            Reset
+        </button>
+
+    </div>
+
+    @if (loading)
+    {
+        <div class="state-card">
+            <p>Loading trade orders...</p>
+        </div>
+    }
+    else if (error)
+    {
+        <div class="error-card">
+            <h3>Unable to load trade orders</h3>
+            <p>Check that the ORX API is running.</p>
+
+            <button @onclick="LoadTradeOrders">
+                Retry
+            </button>
+        </div>
+    }
+    else
+    {
+        <div class="summary-row">
+
+            <div class="summary-card">
+                <span>Total Records</span>
+                <strong>@totalRecords</strong>
+            </div>
+
+            <div class="summary-card">
+                <span>Current Page</span>
+                <strong>@currentPage</strong>
+            </div>
+
+            <div class="summary-card">
+                <span>Total Pages</span>
+                <strong>@totalPages</strong>
+            </div>
+
+        </div>
+
+        <div class="table-card">
+
+            <div class="table-header">
+
+                <div>
+                    <h2>Trade Order Network</h2>
+                    <p>Live records from SQL Server</p>
+                </div>
+
+                <button class="refresh-button"
+                        @onclick="LoadTradeOrders">
+                    ↻ Refresh
+                </button>
+
+            </div>
+
+            @if (orders.Count == 0)
+            {
+                <div class="empty-state">
+                    No trade orders found.
+                </div>
+            }
+            else
+            {
+                <div class="table-wrapper">
+
+                    <table>
+
+                        <thead>
+                            <tr>
+                                <th>Trade ID</th>
+                                <th>Trade Type</th>
+                                <th>Buyer</th>
+                                <th>Seller</th>
+                                <th>Commodity</th>
+                                <th>Origin</th>
+                                <th>Destination</th>
+                                <th>Trade Value</th>
+                                <th>Currency</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+
+                            @foreach (var order in orders)
+                            {
+                                <tr>
+
+                                    <td class="trade-id">
+                                        @order.TradeId
+                                    </td>
+
+                                    <td>
+                                        @(order.TradeType ?? "—")
+                                    </td>
+
+                                    <td>
+                                        @(order.Buyer ?? "—")
+                                    </td>
+
+                                    <td>
+                                        @(order.Seller ?? "—")
+                                    </td>
+
+                                    <td>
+                                        @(order.Commodity ?? "—")
+                                    </td>
+
+                                    <td>
+                                        @(order.OriginCountry ?? "—")
+                                    </td>
+
+                                    <td>
+                                        @(order.DestinationCountry ?? "—")
+                                    </td>
+
+                                    <td class="trade-value">
+                                        @(order.TradeValue?.ToString("N2") ?? "—")
+                                    </td>
+
+                                    <td>
+                                        @(order.Currency ?? "—")
+                                    </td>
+
+                                    <td>
+                                        <span class="@GetStatusClass(order.Status)">
+                                            @(order.Status ?? "Unknown")
+                                        </span>
+                                    </td>
+
+                                </tr>
+                            }
+
+                        </tbody>
+
+                    </table>
+
+                </div>
+
+                <div class="pagination">
+
+                    <button disabled="@(currentPage <= 1)"
+                            @onclick="PreviousPage">
+                        ← Previous
+                    </button>
+
+                    <span>
+                        Page <strong>@currentPage</strong>
+                        of <strong>@totalPages</strong>
+                    </span>
+
+                    <button disabled="@(currentPage >= totalPages)"
+                            @onclick="NextPage">
+                        Next →
+                    </button>
+
+                </div>
+            }
+
+        </div>
+    }
+
+</div>
+
+@code {
+
+    private List<TradeOrderDto> orders = new();
+
+    private int currentPage = 1;
+    private int pageSize = 20;
+
+    private int totalRecords;
+    private int totalPages;
+
+    private bool loading = true;
+    private bool error;
+
+    private string search = "";
+    private string status = "";
+    private string tradeType = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadTradeOrders();
+    }
+
+    private async Task LoadTradeOrders()
+    {
+        loading = true;
+        error = false;
+
+        try
+        {
+            var client =
+                HttpClientFactory.CreateClient("ORXApi");
+
+            var url =
+                $"trade-orders?page={currentPage}" +
+                $"&pageSize={pageSize}" +
+                $"&search={Uri.EscapeDataString(search)}" +
+                $"&status={Uri.EscapeDataString(status)}" +
+                $"&tradeType={Uri.EscapeDataString(tradeType)}";
+
+            var response =
+                await client.GetFromJsonAsync<PagedResponse<TradeOrderDto>>(url);
+
+            if (response != null)
+            {
+                orders = response.Data ?? new List<TradeOrderDto>();
+
+                totalRecords = response.TotalRecords;
+                totalPages = response.TotalPages;
+            }
+        }
+        catch
+        {
+            error = true;
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private async Task ApplyFilters()
+    {
+        currentPage = 1;
+
+        await LoadTradeOrders();
+    }
+
+    private async Task ResetFilters()
+    {
+        search = "";
+        status = "";
+        tradeType = "";
+
+        currentPage = 1;
+
+        await LoadTradeOrders();
+    }
+
+    private async Task PreviousPage()
+    {
+        if (currentPage > 1)
+        {
+            currentPage--;
+
+            await LoadTradeOrders();
+        }
+    }
+
+    private async Task NextPage()
+    {
+        if (currentPage < totalPages)
+        {
+            currentPage++;
+
+            await LoadTradeOrders();
+        }
+    }
+
+    private string GetStatusClass(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return "status unknown";
+
+        return value.ToLowerInvariant() switch
+        {
+            "delivered" => "status delivered",
+            "in transit" => "status transit",
+            "pending" => "status pending",
+            "cancelled" => "status cancelled",
+            _ => "status unknown"
+        };
+    }
+
+    public class PagedResponse<T>
+    {
+        public List<T>? Data { get; set; }
+
+        public int Page { get; set; }
+
+        public int PageSize { get; set; }
+
+        public int TotalRecords { get; set; }
+
+        public int TotalPages { get; set; }
+    }
+
+    public class TradeOrderDto
+    {
+        public string TradeId { get; set; } = "";
+
+        public string? CustomerId { get; set; }
+
+        public string? TradeType { get; set; }
+
+        public string? OriginCountry { get; set; }
+
+        public string? DestinationCountry { get; set; }
+
+        public string? Buyer { get; set; }
+
+        public string? Seller { get; set; }
+
+        public string? Commodity { get; set; }
+
+        public decimal? TradeValue { get; set; }
+
+        public string? Currency { get; set; }
+
+        public string? Incoterm { get; set; }
+
+        public string? PaymentTerms { get; set; }
+
+        public DateOnly? PlannedShipDate { get; set; }
+
+        public DateOnly? RequiredDeliveryDate { get; set; }
+
+        public string? Status { get; set; }
+    }
+}
