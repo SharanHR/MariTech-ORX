@@ -7,6 +7,6 @@
     <Project Path="backend/MariTech.ORX.Worker/MariTech.ORX.Worker.csproj" />
   </Folder>
   <Folder Name="/frontend/">
-    <Project Path="frontend/MariTech.ORX.Web/MariTech.ORX.Web.csproj" />
+    <Project Path="docs/MariTech.ORX.Web/MariTech.ORX.Web.csproj" />
   </Folder>
 </Solution>

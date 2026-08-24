@@ -17,3 +17,4 @@ C:\Users\shara\Downloads\MariTech_ORX_dashboard_reference_v2_fixed\MariTech_ORX\
 C:\Users\shara\Downloads\MariTech_ORX_dashboard_reference_v2_fixed\MariTech_ORX\backend\MariTech.ORX.Infrastructure\obj\Debug\net10.0\MariTech.ORX.Infrastructure.pdb
 C:\Users\shara\Downloads\MariTech_ORX_dashboard_reference_v2_fixed\MariTech_ORX\backend\MariTech.ORX.Infrastructure\obj\Debug\net10.0\MariTech.ORX.Infrastructure.genruntimeconfig.cache
 C:\Users\shara\Downloads\MariTech_ORX_dashboard_reference_v2_fixed\MariTech_ORX\backend\MariTech.ORX.Infrastructure\obj\Debug\net10.0\ref\MariTech.ORX.Infrastructure.dll
+C:\Users\shara\Downloads\MariTech_ORX_dashboard_reference_v2_fixed\MariTech_ORX\backend\MariTech.ORX.Infrastructure\obj\Debug\net10.0\MariTech.ORX.Infrastructure.sourcelink.json
