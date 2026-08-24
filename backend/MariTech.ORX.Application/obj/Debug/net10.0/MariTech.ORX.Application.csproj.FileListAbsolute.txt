@@ -13,3 +13,4 @@ C:\Users\shara\Downloads\MariTech_ORX_dashboard_reference_v2_fixed\MariTech_ORX\
 C:\Users\shara\Downloads\MariTech_ORX_dashboard_reference_v2_fixed\MariTech_ORX\backend\MariTech.ORX.Application\obj\Debug\net10.0\refint\MariTech.ORX.Application.dll
 C:\Users\shara\Downloads\MariTech_ORX_dashboard_reference_v2_fixed\MariTech_ORX\backend\MariTech.ORX.Application\obj\Debug\net10.0\MariTech.ORX.Application.pdb
 C:\Users\shara\Downloads\MariTech_ORX_dashboard_reference_v2_fixed\MariTech_ORX\backend\MariTech.ORX.Application\obj\Debug\net10.0\ref\MariTech.ORX.Application.dll
+C:\Users\shara\Downloads\MariTech_ORX_dashboard_reference_v2_fixed\MariTech_ORX\backend\MariTech.ORX.Application\obj\Debug\net10.0\MariTech.ORX.Application.sourcelink.json
